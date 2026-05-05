@@ -1,0 +1,216 @@
+@use '@angular/material' as mat;
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import 'material-icons/iconfont/material-icons.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@include mat.core();
+
+$primary-palette: mat.define-palette(mat.$blue-palette, 700);
+$accent-palette:  mat.define-palette(mat.$teal-palette, 500);
+$warn-palette:    mat.define-palette(mat.$red-palette);
+
+$theme: mat.define-light-theme((
+  color: (primary: $primary-palette, accent: $accent-palette, warn: $warn-palette),
+  typography: mat.define-typography-config(),
+  density: 0,
+));
+
+@include mat.all-component-themes($theme);
+
+* { box-sizing: border-box; }
+
+html, body {
+  min-height: 100%;
+}
+
+html {
+  background: linear-gradient(135deg, #020617 0%, #082f49 35%, #0f172a 100%);
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: transparent;
+  color: #172B4D;
+  overscroll-behavior-y: none;
+}
+
+app-root {
+  display: block;
+  min-height: 100vh;
+  background: transparent;
+}
+
+.mat-mdc-form-field { width: 100%; }
+
+.mat-mdc-form-field.mat-form-field-appearance-outline {
+  --mat-form-field-state-layer-color: transparent;
+}
+
+.mat-mdc-form-field.mat-form-field-appearance-outline .mat-mdc-text-field-wrapper {
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.38);
+  transition: box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.mat-mdc-form-field.mat-form-field-appearance-outline .mdc-notched-outline__leading,
+.mat-mdc-form-field.mat-form-field-appearance-outline .mdc-notched-outline__notch,
+.mat-mdc-form-field.mat-form-field-appearance-outline .mdc-notched-outline__trailing {
+  border-color: transparent !important;
+}
+
+.mat-mdc-form-field.mat-form-field-appearance-outline .mat-mdc-form-field-focus-overlay {
+  display: none;
+}
+
+.mat-mdc-form-field.mat-form-field-appearance-outline .mdc-floating-label {
+  color: #64748b !important;
+}
+
+.mat-mdc-form-field.mat-form-field-appearance-outline.mat-focused .mdc-floating-label {
+  color: #0369a1 !important;
+}
+
+.mat-mdc-form-field.mat-form-field-appearance-outline.mat-focused .mat-mdc-text-field-wrapper {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: inset 0 0 0 1px rgba(2, 132, 199, 0.5), 0 0 0 4px rgba(2, 132, 199, 0.08);
+}
+
+.dialog-field {
+  --mdc-filled-text-field-container-color: transparent;
+  --mdc-filled-text-field-focus-active-indicator-color: transparent;
+  --mdc-filled-text-field-active-indicator-color: transparent;
+  --mat-form-field-state-layer-color: transparent;
+}
+
+.dialog-field .mat-mdc-text-field-wrapper {
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.34);
+  transition: box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.dialog-field .mat-mdc-form-field-focus-overlay,
+.dialog-field .mdc-line-ripple {
+  display: none;
+}
+
+.dialog-field .mat-mdc-form-field-infix {
+  min-height: 3.4rem;
+  padding-top: 1.15rem;
+  padding-bottom: 0.7rem;
+}
+
+.dialog-field textarea.mat-mdc-input-element {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.dialog-field .mdc-floating-label {
+  color: #64748b !important;
+}
+
+.dialog-field.mat-focused .mdc-floating-label {
+  color: #0369a1 !important;
+}
+
+.dialog-field.mat-focused .mat-mdc-text-field-wrapper {
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: inset 0 0 0 1px rgba(2, 132, 199, 0.46), 0 0 0 4px rgba(2, 132, 199, 0.08);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c1c7d0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a5adba; }
+
+/* CDK Drag placeholders */
+.cdk-drag-preview {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  transform: rotate(2deg);
+  opacity: 0.95;
+}
+.cdk-drag-placeholder { opacity: 0.3; }
+.cdk-drag-animating { transition: transform 200ms cubic-bezier(0,0,0.2,1); }
+.cdk-drop-list-dragging .cdk-drag { transition: transform 200ms cubic-bezier(0,0,0.2,1); }
+
+/* ── Profile Menu Panel (CDK overlay) ── */
+.mat-mdc-menu-panel.mat-mdc-menu-panel {
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  box-shadow:
+    0 20px 60px rgba(15, 23, 42, 0.12),
+    0 4px 16px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  min-width: 240px;
+}
+
+.mat-mdc-menu-panel .mat-mdc-menu-content {
+  padding: 6px 0;
+}
+
+.mat-mdc-menu-panel .mat-mdc-menu-item {
+  border-radius: 10px;
+  margin: 2px 8px;
+  padding: 0 12px;
+  min-height: 42px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #334155;
+  transition: all 0.15s ease;
+}
+
+.mat-mdc-menu-panel .mat-mdc-menu-item:hover {
+  background: rgba(99, 102, 241, 0.06);
+  color: #1e293b;
+}
+
+.mat-mdc-menu-panel .mat-mdc-menu-item .mat-icon {
+  color: #94a3b8;
+  margin-right: 10px;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  transition: color 0.15s ease;
+}
+
+.mat-mdc-menu-panel .mat-mdc-menu-item:hover .mat-icon {
+  color: #6366f1;
+}
+
+.mat-mdc-menu-panel .logout-item {
+  color: #ef4444 !important;
+}
+
+.mat-mdc-menu-panel .logout-item .mat-icon {
+  color: #ef4444 !important;
+}
+
+.mat-mdc-menu-panel .logout-item:hover {
+  background: rgba(239, 68, 68, 0.06) !important;
+}
+
+.mat-mdc-menu-panel .logout-item:hover .mat-icon {
+  color: #dc2626 !important;
+}
+
+.notification-menu-panel.mat-mdc-menu-panel {
+  min-width: 26rem !important;
+  max-width: min(26rem, calc(100vw - 1rem)) !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+.notification-menu-panel .mat-mdc-menu-content {
+  padding: 0 !important;
+}
