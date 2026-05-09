@@ -257,8 +257,11 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
       height: 32px;
       align-items: center;
       justify-content: center;
-      border-radius: 9px;
+      border-radius: 9999px;
       background: linear-gradient(135deg, #6366f1, #0ea5e9);
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: cover;
       color: #fff;
       font-size: 13px;
       font-weight: 700;
@@ -305,7 +308,7 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
       width: 42px;
       height: 42px;
       font-size: 15px;
-      border-radius: 12px;
+      border-radius: 9999px;
       box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
     }
     .menu-header-name {

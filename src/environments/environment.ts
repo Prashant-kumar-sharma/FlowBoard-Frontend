@@ -2,7 +2,7 @@ export const environment = {
   production: false,
   apiUrl: 'http://localhost:8080/api/v1',
   wsUrl: 'http://localhost:8085/ws',
-  oauthBaseUrl: 'http://localhost:8081',
+  oauthBaseUrl: 'http://localhost:8080',
   services: {
     auth:     'http://localhost:8080/api/v1',
     workspace:'http://localhost:8080/api/v1',

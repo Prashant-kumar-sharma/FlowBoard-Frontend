@@ -44,6 +44,9 @@ export class CardService {
   archive(id: number): Observable<void> {
     return this.http.patch<void>(`${this.CARD}/cards/${id}/archive`, {});
   }
+  unarchive(id: number): Observable<void> {
+    return this.http.patch<void>(`${this.CARD}/cards/${id}/unarchive`, {});
+  }
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.CARD}/cards/${id}`);
   }

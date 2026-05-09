@@ -1,10 +1,11 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
-import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { NotificationService } from '../../core/services/notification.service';
 import { Notification } from '../../core/models/notification.model';
 import { TimeAgoPipe } from '../../shared/pipes/time-ago.pipe';
@@ -54,6 +55,7 @@ import { TimeAgoPipe } from '../../shared/pipes/time-ago.pipe';
         <div *ngFor="let n of notifications"
              class="notification-row"
              [class.unread]="!n.isRead"
+             [class.expanded]="isExpanded(n)"
              (click)="handleClick(n)">
           <div class="row-accent" [ngClass]="accentClass(n.type)">
             <mat-icon>{{ typeIcon(n.type) }}</mat-icon>
@@ -66,6 +68,7 @@ import { TimeAgoPipe } from '../../shared/pipes/time-ago.pipe';
             </div>
             <p class="row-title">{{ n.title }}</p>
             <p class="row-message" [innerHTML]="formatMessage(n.message)"></p>
+            <p class="row-hint" *ngIf="isExpanded(n) && n.deepLinkUrl">Click again to open this card.</p>
           </div>
 
           <div class="unread-dot" *ngIf="!n.isRead"></div>
@@ -259,6 +262,11 @@ import { TimeAgoPipe } from '../../shared/pipes/time-ago.pipe';
       box-shadow: inset 0 0 0 1px rgba(186, 230, 253, 0.85);
     }
 
+    .notification-row.expanded {
+      background: #f8fafc;
+      box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.85);
+    }
+
     .row-accent {
       display: flex;
       align-items: center;
@@ -332,9 +340,23 @@ import { TimeAgoPipe } from '../../shared/pipes/time-ago.pipe';
       overflow: hidden;
     }
 
+    .notification-row.expanded .row-message {
+      display: block;
+      -webkit-line-clamp: unset;
+      -webkit-box-orient: unset;
+      overflow: visible;
+    }
+
     .row-message :is(strong, .message-entity) {
       color: #0f172a;
       font-weight: 700;
+    }
+
+    .row-hint {
+      margin: 0.45rem 0 0;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #0284c7;
     }
 
     .unread-dot {
@@ -366,10 +388,11 @@ import { TimeAgoPipe } from '../../shared/pipes/time-ago.pipe';
 })
 export class NotificationPanelComponent implements OnInit {
   notifications: Notification[] = [];
+  expandedNotificationId: number | null = null;
 
   constructor(
     public notificationService: NotificationService,
-    private readonly dialog: MatDialog
+    private readonly router: Router
   ) {}
 
   ngOnInit(): void {
@@ -388,18 +411,20 @@ export class NotificationPanelComponent implements OnInit {
       n.isRead = true;
     }
 
-    this.dialog.open(NotificationDetailDialogComponent, {
-      data: n,
-      width: 'min(92vw, 34rem)',
-      maxWidth: '92vw',
-      autoFocus: false,
-      panelClass: 'notification-detail-dialog-panel',
-    });
+    if (this.expandedNotificationId === n.id && n.deepLinkUrl) {
+      this.router.navigateByUrl(n.deepLinkUrl);
+      return;
+    }
+
+    this.expandedNotificationId = this.expandedNotificationId === n.id ? null : n.id;
   }
 
   deleteRead(): void {
     this.notificationService.deleteRead().subscribe(() => {
       this.notifications = this.notifications.filter(n => !n.isRead);
+      if (!this.notifications.some(n => n.id === this.expandedNotificationId)) {
+        this.expandedNotificationId = null;
+      }
     });
   }
 
@@ -436,6 +461,10 @@ export class NotificationPanelComponent implements OnInit {
 
   formatMessage(message: string): string {
     return emphasizeQuotedText(message);
+  }
+
+  isExpanded(notification: Notification): boolean {
+    return this.expandedNotificationId === notification.id;
   }
 }
 

@@ -72,6 +72,7 @@ import { User } from '../../core/models/user.model';
             <div
               class="mx-auto flex h-28 w-28 items-center justify-center rounded-full border-4 border-white bg-slate-900 text-3xl font-bold text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
               [style.background-image]="getAvatarBackgroundImage(user.avatarUrl)"
+              style="background-position:center; background-repeat:no-repeat; background-size:cover;"
             >
               <span *ngIf="!user.avatarUrl">{{ initials }}</span>
             </div>

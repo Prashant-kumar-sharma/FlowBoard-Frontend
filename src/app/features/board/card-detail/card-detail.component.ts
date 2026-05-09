@@ -24,13 +24,14 @@ import { CommentService } from '../../../core/services/comment.service';
 import { LabelService } from '../../../core/services/label.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { BoardService } from '../../../core/services/board.service';
-import { BoardMember } from '../../../core/models/board.model';
+import { Board, BoardMember } from '../../../core/models/board.model';
 import { User } from '../../../core/models/user.model';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { WorkspaceMember } from '../../../core/models/workspace.model';
 import { environment } from '../../../../environments/environment';
 import * as BoardActions from '../../../store/board/board.actions';
 import { PromptDialogComponent } from '../../../shared/components/prompt-dialog/prompt-dialog.component';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
 
 @Component({
@@ -40,7 +41,8 @@ import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
     CommonModule, FormsModule, ReactiveFormsModule, MatDialogModule, MatButtonModule,
     MatFormFieldModule, MatInputModule, MatSelectModule, MatChipsModule,
     MatProgressBarModule, MatSnackBarModule, MatDatepickerModule,
-    MatNativeDateModule, MatDividerModule, TimeAgoPipe, MatIconModule
+    MatNativeDateModule, MatDividerModule, TimeAgoPipe, MatIconModule,
+    ConfirmDialogComponent
   ],
   styles: [`
     .card-back-button {
@@ -251,8 +253,17 @@ import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
         <!-- Checklists -->
         <div *ngFor="let checklist of checklists" class="mb-6">
           <div class="flex items-center justify-between mb-2">
-            <p class="text-sm font-semibold text-gray-600">{{ checklist.title }}</p>
-            <span class="text-xs text-gray-400">{{ getProgress(checklist) }}%</span>
+            <div class="flex items-center gap-3 min-w-0">
+              <p class="text-sm font-semibold text-gray-600">{{ checklist.title }}</p>
+              <span class="text-xs text-gray-400">{{ getProgress(checklist) }}%</span>
+            </div>
+            <button
+              type="button"
+              class="text-[10px] uppercase font-bold text-gray-400 hover:text-red-500"
+              (click)="deleteChecklist(checklist.id)"
+            >
+              Delete
+            </button>
           </div>
           <mat-progress-bar mode="determinate" [value]="getProgress(checklist)" class="mb-3 rounded"></mat-progress-bar>
           <div *ngFor="let item of checklist.items" class="flex items-center gap-2 py-1">
@@ -310,10 +321,10 @@ import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
                        [class.hover:bg-gray-50]="i !== mentionIndex">
                     <div class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold"
                          [style.background]="i === mentionIndex ? 'rgba(255,255,255,0.2)' : '#e2e8f0'">
-                      {{ getCommentAuthorInitials(member.userId) }}
+                      {{ getMemberInitials(member.userId) }}
                     </div>
                     <div class="flex flex-col">
-                      <span class="text-sm font-semibold">{{ getCommentAuthorLabel(member.userId) }}</span>
+                      <span class="text-sm font-semibold">{{ getMemberDisplayLabel(member.userId) }}</span>
                       <span class="text-[10px]" [class]="i === mentionIndex ? 'text-white/80' : 'text-gray-400'">
                         &#64;{{ getMemberUsername(member.userId) }}
                       </span>
@@ -490,6 +501,9 @@ import { TimeAgoPipe } from '../../../shared/pipes/time-ago.pipe';
         <button mat-stroked-button color="warn" class="w-full text-xs h-8"
                 (click)="archiveCard()">Archive Card</button>
 
+        <button mat-stroked-button color="warn" class="w-full text-xs h-8"
+                (click)="deleteCard()">Delete Card</button>
+
         <button mat-stroked-button class="w-full text-xs h-8"
                 (click)="addChecklist()">+ Checklist</button>
       </div>
@@ -537,7 +551,12 @@ export class CardDetailComponent implements OnInit {
   repliesMap: Record<number, Comment[]> = {};
 
   constructor(
-    @Inject(MAT_DIALOG_DATA) public data: { card: Card; workspaceId?: number },
+    @Inject(MAT_DIALOG_DATA) public data: {
+      card: Card;
+      workspaceId?: number;
+      boardMembers?: BoardMember[];
+      boardMemberDirectory?: Record<number, User>;
+    },
     private dialogRef: MatDialogRef<CardDetailComponent>,
     private cardService: CardService,
     private commentService: CommentService,
@@ -552,6 +571,8 @@ export class CardDetailComponent implements OnInit {
     this.card = { ...data.card };
     this.description = this.card.description || '';
     this.selectedAssigneeId = this.card.assigneeId != null ? String(this.card.assigneeId) : '';
+    this.boardMembers = [...(data.boardMembers ?? [])];
+    this.assignableUsers = { ...(data.boardMemberDirectory ?? {}) };
   }
 
   ngOnInit(): void {
@@ -559,22 +580,25 @@ export class CardDetailComponent implements OnInit {
     if (user) this.currentUserInitial = user.fullName[0].toUpperCase();
 
     forkJoin({
-      comments: this.commentService.getByCard(this.card.id),
-      labels: this.labelService.getForCard(this.card.id),
-      boardLabels: this.labelService.getLabelsByBoard(this.card.boardId),
-      checklists: this.labelService.getChecklists(this.card.id),
-      boardMembers: this.boardService.getMembers(this.card.boardId),
-      board: this.boardService.getById(this.card.boardId),
-      attachments: this.commentService.getAttachments(this.card.id)
+      comments: this.commentService.getByCard(this.card.id).pipe(catchError(() => of([] as Comment[]))),
+      labels: this.labelService.getForCard(this.card.id).pipe(catchError(() => of([] as Label[]))),
+      boardLabels: this.labelService.getLabelsByBoard(this.card.boardId).pipe(catchError(() => of([] as Label[]))),
+      checklists: this.labelService.getChecklists(this.card.id).pipe(catchError(() => of([] as Checklist[]))),
+      boardMembers: this.boardService.getMembers(this.card.boardId).pipe(catchError(() => of([] as BoardMember[]))),
+      board: this.boardService.getById(this.card.boardId).pipe(catchError(() => of(null))),
+      attachments: this.commentService.getAttachments(this.card.id).pipe(catchError(() => of([] as Attachment[])))
     }).subscribe(({ comments, labels, boardLabels, checklists, boardMembers, board, attachments }) => {
+      const resolvedBoardMembers = this.resolveBoardMembers(boardMembers, board);
+      const resolvedWorkspaceId = this.data.workspaceId ?? board?.workspaceId;
+
       this.comments = comments;
       this.labels = labels;
       this.boardLabels = boardLabels;
       this.checklists = checklists;
-      this.boardMembers = boardMembers;
+      this.boardMembers = resolvedBoardMembers;
       this.attachments = attachments;
       this.loadCommentAuthors(comments);
-      this.loadAssignableMembers(this.data.workspaceId ?? board.workspaceId, boardMembers);
+      this.loadAssignableMembers(resolvedWorkspaceId, resolvedBoardMembers);
       
       // Fetch replies for each comment
       this.comments.forEach(comment => this.loadReplies(comment.id));
@@ -650,13 +674,16 @@ export class CardDetailComponent implements OnInit {
   }
 
   addComment(): void {
-    if (!this.newComment.trim()) return;
+    const content = this.newComment.trim();
+    if (!content) return;
     this.savingComment = true;
-    this.commentService.add(this.card.id, this.newComment).subscribe({
+    this.commentService.add(this.card.id, content).subscribe({
       next: (comment) => {
-        this.comments = [...this.comments, comment];
+        const normalizedComment = this.normalizeComment(comment, content);
+        this.comments = [...this.comments, normalizedComment];
         this.newComment = '';
-        this.loadCommentAuthors([comment]);
+        this.loadCommentAuthors([normalizedComment]);
+        this.refreshComments(normalizedComment.id);
         this.snack.open('Comment saved', 'Close', { duration: 2000 });
         this.savingComment = false;
       },
@@ -686,16 +713,17 @@ export class CardDetailComponent implements OnInit {
   }
 
   addReply(parentCommentId: number): void {
-    if (!this.newReplyContent.trim() || this.savingComment) return;
+    const content = this.newReplyContent.trim();
+    if (!content || this.savingComment) return;
     this.savingComment = true;
 
-    this.commentService.add(this.card.id, this.newReplyContent, parentCommentId).subscribe({
+    this.commentService.add(this.card.id, content, parentCommentId).subscribe({
       next: (reply) => {
-        if (!this.repliesMap[parentCommentId]) {
-          this.repliesMap[parentCommentId] = [];
-        }
-        this.repliesMap[parentCommentId] = [...this.repliesMap[parentCommentId], reply];
-        this.loadCommentAuthors([reply]);
+        const normalizedReply = this.normalizeComment(reply, content, parentCommentId);
+        const currentReplies = this.repliesMap[parentCommentId] ?? [];
+        this.repliesMap[parentCommentId] = [...currentReplies, normalizedReply];
+        this.loadCommentAuthors([normalizedReply]);
+        this.refreshReplies(parentCommentId);
         this.cancelReplying();
         this.snack.open('Reply saved', 'Close', { duration: 2000 });
         this.savingComment = false;
@@ -747,8 +775,6 @@ export class CardDetailComponent implements OnInit {
   }
 
   deleteComment(commentId: number): void {
-    if (!confirm('Are you sure you want to delete this comment?')) return;
-
     this.commentService.delete(commentId).subscribe({
       next: () => {
         // Try deleting from top-level comments
@@ -825,11 +851,55 @@ export class CardDetailComponent implements OnInit {
     });
   }
 
+  deleteChecklist(checklistId: number): void {
+    this.labelService.deleteChecklist(checklistId).subscribe({
+      next: () => {
+        this.checklists = this.checklists.filter(cl => cl.id !== checklistId);
+        this.snack.open('Checklist deleted', 'Close', { duration: 2000 });
+      },
+      error: (err) => {
+        const message = err?.error?.message || err?.message || 'Failed to delete checklist';
+        this.snack.open(message, 'Close', { duration: 4000 });
+      }
+    });
+  }
+
   archiveCard(): void {
     this.cardService.archive(this.card.id).subscribe(() => {
       this.store.dispatch(BoardActions.archiveCard({ cardId: this.card.id }));
       this.snack.open('Card archived', 'Close', { duration: 2000 });
       this.dialogRef.close();
+    });
+  }
+
+  deleteCard(): void {
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Card',
+        message: `Are you sure you want to permanently delete "${this.card.title}"? This action cannot be undone.`,
+        confirmText: 'Delete Card',
+        isDanger: true
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.cardService.delete(this.card.id).subscribe({
+          next: () => {
+            // Since we don't have a dedicated deleteCard action that handles removal from cardsByList easily,
+            // we'll just reload the board for simplicity, or we could add a new action.
+            // Actually, let's use the loadBoard action to refresh everything.
+            this.store.dispatch(BoardActions.loadBoard({ boardId: this.card.boardId }));
+            this.snack.open('Card deleted', 'Close', { duration: 2500 });
+            this.dialogRef.close();
+          },
+          error: (err) => {
+            const message = err?.error?.message || err?.message || 'Failed to delete card';
+            this.snack.open(message, 'Close', { duration: 4500 });
+          }
+        });
+      }
     });
   }
 
@@ -898,11 +968,15 @@ export class CardDetailComponent implements OnInit {
   }
 
   removeAttachment(id: number): void {
-    if (!confirm('Delete this attachment?')) return;
-    
-    this.commentService.deleteAttachment(id).subscribe(() => {
-      this.attachments = this.attachments.filter(a => a.id !== id);
-      this.snack.open('Attachment removed', 'Close', { duration: 2000 });
+    this.commentService.deleteAttachment(id).subscribe({
+      next: () => {
+        this.attachments = this.attachments.filter(a => a.id !== id);
+        this.snack.open('Attachment removed', 'Close', { duration: 2000 });
+      },
+      error: (err) => {
+        const message = err?.error?.message || err?.message || 'Failed to remove attachment';
+        this.snack.open(message, 'Close', { duration: 4000 });
+      }
     });
   }
 
@@ -996,6 +1070,45 @@ export class CardDetailComponent implements OnInit {
     });
   }
 
+  private refreshComments(commentIdToExpand?: number): void {
+    this.commentService.getByCard(this.card.id).subscribe({
+      next: (comments) => {
+        this.comments = comments;
+        this.loadCommentAuthors(comments);
+        if (commentIdToExpand) {
+          this.loadReplies(commentIdToExpand);
+        }
+      },
+      error: () => {
+        // Keep optimistic comment state if the follow-up refresh fails.
+      }
+    });
+  }
+
+  private refreshReplies(parentCommentId: number): void {
+    this.commentService.getReplies(parentCommentId).subscribe({
+      next: (replies) => {
+        this.repliesMap[parentCommentId] = replies;
+        this.loadCommentAuthors(replies);
+      },
+      error: () => {
+        // Keep optimistic reply state if the follow-up refresh fails.
+      }
+    });
+  }
+
+  private normalizeComment(comment: Comment, fallbackContent: string, parentCommentId?: number): Comment {
+    const now = new Date().toISOString();
+    return {
+      ...comment,
+      content: comment.content || fallbackContent,
+      parentCommentId: comment.parentCommentId ?? parentCommentId,
+      isDeleted: comment.isDeleted ?? false,
+      createdAt: comment.createdAt || now,
+      updatedAt: comment.updatedAt || comment.createdAt || now
+    };
+  }
+
   private loadAssignableMembers(workspaceId: number | undefined, boardMembers: BoardMember[]): void {
     if (!workspaceId) {
       this.loadAssignableUsers(boardMembers.map(member => member.userId));
@@ -1036,6 +1149,25 @@ export class CardDetailComponent implements OnInit {
         });
 
       this.assignableUsers = nextAssignableUsers;
+
+      if (this.showMentionDropdown) {
+        this.filterMentions();
+      }
+    });
+  }
+
+  private resolveBoardMembers(boardMembers: BoardMember[], board: Board | null): BoardMember[] {
+    const fallbackMembers = board?.members ?? [];
+    const mergedMembers = [...this.boardMembers, ...boardMembers, ...fallbackMembers];
+    const seenUserIds = new Set<number>();
+
+    return mergedMembers.filter((member) => {
+      if (seenUserIds.has(member.userId)) {
+        return false;
+      }
+
+      seenUserIds.add(member.userId);
+      return true;
     });
   }
 
@@ -1089,7 +1221,10 @@ export class CardDetailComponent implements OnInit {
     this.filteredMentionMembers = this.boardMembers.filter(member => {
       const username = this.getMemberUsername(member.userId).toLowerCase();
       const fullName = (this.assignableUsers[member.userId]?.fullName || '').toLowerCase();
-      const matches = username.includes(this.mentionSearchTerm) || fullName.includes(this.mentionSearchTerm);
+      const displayName = this.getMemberDisplayLabel(member.userId).toLowerCase();
+      const matches = username.includes(this.mentionSearchTerm)
+        || fullName.includes(this.mentionSearchTerm)
+        || displayName.includes(this.mentionSearchTerm);
       return matches;
     });
     this.mentionIndex = 0;
@@ -1110,6 +1245,25 @@ export class CardDetailComponent implements OnInit {
     this.showMentionDropdown = false;
     this.mentionIndex = 0;
     this.mentionTriggerPos = -1;
+  }
+
+  getMemberDisplayLabel(userId: number): string {
+    const user = this.assignableUsers[userId] ?? this.commentAuthors[userId];
+    return user?.username || user?.fullName || `User #${userId}`;
+  }
+
+  getMemberInitials(userId: number): string {
+    const user = this.assignableUsers[userId] ?? this.commentAuthors[userId];
+    if (!user?.fullName?.trim()) {
+      return String(userId).slice(-2);
+    }
+
+    return user.fullName
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map(part => part.charAt(0).toUpperCase())
+      .join('');
   }
 
   getMemberUsername(userId: number): string {

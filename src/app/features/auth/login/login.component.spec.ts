@@ -52,7 +52,7 @@ describe('LoginComponent', () => {
 
     component.onSubmit();
 
-    expect(auth.requestLoginOtp).toHaveBeenCalledWith('user@example.com');
+    expect(auth.requestLoginOtp).toHaveBeenCalledWith({ email: 'user@example.com', password: '' });
     expect(component.otpSent).toBeTrue();
     expect(component.submittedEmail).toBe('user@example.com');
     expect(component.form.get('otp')?.validator).toBeTruthy();
@@ -76,7 +76,7 @@ describe('LoginComponent', () => {
 
     component.resendOtp();
 
-    expect(auth.requestLoginOtp).toHaveBeenCalledWith('user@example.com');
+    expect(auth.requestLoginOtp).toHaveBeenCalledWith({ email: 'user@example.com', password: '' });
   });
 
   it('does not resend while loading', () => {

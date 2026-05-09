@@ -199,31 +199,58 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
 	            </div>
 	          </div>
 
-	          <div *ngIf="archivedLists.length && isLoggedIn" class="board-archived-panel">
-	            <div class="flex flex-wrap items-start justify-between gap-4">
-	              <div>
-	                <p class="board-members-eyebrow">Archived Lists</p>
-	                <p class="board-members-copy">{{ archivedLists.length }} archived list{{ archivedLists.length === 1 ? '' : 's' }} saved for later.</p>
-	              </div>
-	            </div>
+	          <div *ngIf="(archivedLists.length || archivedCards.length) && isLoggedIn" class="board-archived-panel">
+	            <div *ngIf="archivedLists.length" class="mb-8">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p class="board-members-eyebrow">Archived Lists</p>
+                    <p class="board-members-copy">{{ archivedLists.length }} archived list{{ archivedLists.length === 1 ? '' : 's' }} saved for later.</p>
+                  </div>
+                </div>
 
-	            <div class="mt-4 flex flex-wrap gap-3">
-	              <article *ngFor="let archived of archivedLists; trackBy: trackByArchivedList" class="archived-list-card">
-	                <div class="min-w-0 flex-1">
-	                  <p class="truncate text-sm font-semibold text-slate-900">{{ archived.name }}</p>
-	                  <p class="text-xs uppercase tracking-[0.16em] text-slate-500">Archived</p>
-	                </div>
-	                <button mat-stroked-button type="button" class="archived-list-action" (click)="restoreList(archived)">
-	                  Restore
-	                </button>
-	                <button mat-stroked-button type="button" class="archived-list-action" (click)="moveList(archived)">
-	                  Move
-	                </button>
-	                <button mat-stroked-button type="button" class="archived-list-delete" (click)="deleteList(archived)">
-	                  Delete
-	                </button>
-	              </article>
-	            </div>
+                <div class="mt-4 flex flex-wrap gap-3">
+                  <article *ngFor="let archived of archivedLists; trackBy: trackByArchivedList" class="archived-list-card">
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-semibold text-slate-900">{{ archived.name }}</p>
+                      <p class="text-xs uppercase tracking-[0.16em] text-slate-500">Archived List</p>
+                    </div>
+                    <div class="flex gap-2">
+                      <button mat-stroked-button type="button" class="archived-list-action" (click)="restoreList(archived)">
+                        Restore
+                      </button>
+                      <button mat-stroked-button type="button" class="archived-list-delete" (click)="deleteList(archived)">
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                </div>
+              </div>
+
+              <div *ngIf="archivedCards.length">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p class="board-members-eyebrow">Archived Cards</p>
+                    <p class="board-members-copy">{{ archivedCards.length }} archived card{{ archivedCards.length === 1 ? '' : 's' }} waiting for retrieval.</p>
+                  </div>
+                </div>
+
+                <div class="mt-4 flex flex-wrap gap-3">
+                  <article *ngFor="let card of archivedCards; trackBy: trackByArchivedCard" class="archived-list-card">
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-semibold text-slate-900">{{ card.title }}</p>
+                      <p class="text-xs uppercase tracking-[0.16em] text-slate-500">Archived Card</p>
+                    </div>
+                    <div class="flex gap-2">
+                      <button mat-stroked-button type="button" class="archived-list-action" (click)="restoreCard(card)">
+                        Restore
+                      </button>
+                      <button mat-stroked-button type="button" class="archived-list-delete" (click)="deleteCard(card)">
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                </div>
+              </div>
 	          </div>
 	        </div>
 	      </section>
@@ -333,6 +360,9 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
                     <mat-icon>edit</mat-icon>
                     Edit
                   </button>
+                  <button *ngIf="isLoggedIn" type="button" class="card-delete-button" (click)="deleteCard(card, $event)">
+                    <mat-icon>delete</mat-icon>
+                  </button>
                 </div>
 
                 <h3 class="mt-3 text-base font-semibold leading-6 text-slate-900">{{ card.title }}</h3>
@@ -341,7 +371,7 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
                 </p>
 
                 <div class="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <span class="task-meta-chip">
+                  <span class="task-status-chip" [ngClass]="statusClass(card.status)">
                     <mat-icon>flag</mat-icon>
                     {{ formatStatus(card.status) }}
                   </span>
@@ -643,7 +673,8 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
       color: #b91c1c;
     }
 
-    .card-edit-button {
+    .card-edit-button,
+    .card-delete-button {
       display: inline-flex;
       align-items: center;
       gap: 0.35rem;
@@ -657,10 +688,57 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
       cursor: pointer;
     }
 
+    .card-delete-button {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+    
+    .card-delete-button:hover {
+      background: #fecaca;
+    }
+
     .task-meta-chip {
       background: #f1f5f9;
       color: #475569;
       padding: 0.55rem 0.72rem;
+    }
+
+    .task-status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.42rem;
+      border-radius: 9999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      line-height: 1;
+      padding: 0.55rem 0.72rem;
+      text-transform: lowercase;
+    }
+
+    .task-status-chip mat-icon {
+      font-size: 0.95rem;
+      width: 0.95rem;
+      height: 0.95rem;
+    }
+
+    .status-todo {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .status-in-progress {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .status-in-review {
+      background: #ede9fe;
+      color: #6d28d9;
+    }
+
+    .status-done {
+      background: #d1fae5;
+      color: #047857;
     }
 
     .add-card-button {
@@ -784,10 +862,13 @@ export class BoardComponent implements OnInit, OnDestroy {
   archivedLists: TaskList[] = [];
   workspaceBoards: Board[] = [];
   cards: Card[] = [];
+  archivedCards: Card[] = [];
   cardsByList: Record<number, Card[]> = {};
   assigneeDirectory: Record<number, User> = {};
   boardMemberDirectory: Record<number, User> = {};
   private destroy$ = new Subject<void>();
+  private pendingNotificationCardId: number | null = null;
+  private openedNotificationCardId: number | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -811,9 +892,20 @@ export class BoardComponent implements OnInit, OnDestroy {
       this.archivedLists = [];
       this.workspaceBoards = [];
       this.cards = [];
+      this.archivedCards = [];
       this.cardsByList = {};
+      this.pendingNotificationCardId = null;
+      this.openedNotificationCardId = null;
       this.store.dispatch(BoardActions.loadBoard({ boardId }));
       this.loadArchivedLists(boardId);
+    });
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((queryParams) => {
+      const cardIdParam = queryParams.get('cardId');
+      this.pendingNotificationCardId = cardIdParam ? Number(cardIdParam) : null;
+      if (!cardIdParam) {
+        this.openedNotificationCardId = null;
+      }
+      this.tryOpenNotificationCard();
     });
     this.store.select(selectLists).pipe(takeUntil(this.destroy$)).subscribe(l => this.lists = l);
     this.board$.pipe(takeUntil(this.destroy$)).subscribe(board => {
@@ -826,7 +918,8 @@ export class BoardComponent implements OnInit, OnDestroy {
     });
     this.store.select(selectAllCards).pipe(takeUntil(this.destroy$)).subscribe(cards => {
       this.cards = cards.filter(card => !card.isArchived);
-      this.loadAssigneeUsers(this.cards);
+      this.archivedCards = cards.filter(card => card.isArchived);
+      this.loadAssigneeUsers(cards);
       this.cardsByList = this.cards.reduce<Record<number, Card[]>>((acc, card) => {
         if (!acc[card.listId]) {
           acc[card.listId] = [];
@@ -838,6 +931,8 @@ export class BoardComponent implements OnInit, OnDestroy {
       Object.keys(this.cardsByList).forEach(key => {
         this.cardsByList[+key] = this.cardsByList[+key].sort((a, b) => a.position - b.position);
       });
+
+      this.tryOpenNotificationCard();
     });
   }
 
@@ -879,19 +974,35 @@ export class BoardComponent implements OnInit, OnDestroy {
     if (boardId) this.cardService.reorderLists(boardId, orderedIds).subscribe();
   }
 
-  openCard(card: Card): void {
+  openCard(card: Card, options?: { fromNotification?: boolean }): void {
     if (!this.isLoggedIn) {
       this.snack.open('Please sign in to view card activity and details', 'Sign In', { duration: 5000 })
         .onAction().subscribe(() => this.router.navigate(['/auth/login']));
       return;
     }
-    this.dialog.open(CardDetailComponent, {
-      data: { card, workspaceId: this.currentBoard?.workspaceId },
+    const dialogRef = this.dialog.open(CardDetailComponent, {
+      data: {
+        card,
+        workspaceId: this.currentBoard?.workspaceId,
+        boardMembers: this.boardMembers,
+        boardMemberDirectory: this.boardMemberDirectory
+      },
       width: '800px',
       maxWidth: '95vw',
       height: 'auto',
       maxHeight: '90vh'
     });
+
+    if (options?.fromNotification) {
+      dialogRef.afterClosed().subscribe(() => {
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { cardId: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true
+        });
+      });
+    }
   }
 
   get canManageBoard(): boolean {
@@ -1069,6 +1180,47 @@ export class BoardComponent implements OnInit, OnDestroy {
     });
   }
 
+  restoreCard(card: Card): void {
+    this.cardService.unarchive(card.id).subscribe({
+      next: () => {
+        this.store.dispatch(BoardActions.loadBoard({ boardId: +this.route.snapshot.params['id'] }));
+        this.snack.open('Card restored', 'Close', { duration: 2500 });
+      },
+      error: (err) => {
+        const message = err?.error?.message || err?.message || 'Failed to restore card';
+        this.snack.open(message, 'Close', { duration: 4500 });
+      }
+    });
+  }
+
+  deleteCard(card: Card, event?: Event): void {
+    event?.stopPropagation();
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Delete Card',
+        message: `Are you sure you want to delete "${card.title}"? This action is permanent.`,
+        confirmText: 'Delete Card',
+        isDanger: true
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.cardService.delete(card.id).subscribe({
+          next: () => {
+            this.store.dispatch(BoardActions.loadBoard({ boardId: +this.route.snapshot.params['id'] }));
+            this.snack.open('Card deleted', 'Close', { duration: 2500 });
+          },
+          error: (err) => {
+            const message = err?.error?.message || err?.message || 'Failed to delete card';
+            this.snack.open(message, 'Close', { duration: 4500 });
+          }
+        });
+      }
+    });
+  }
+
   editList(list: TaskList): void {
     this.listService.getById(list.id).subscribe({
       next: (freshList) => {
@@ -1193,6 +1345,15 @@ export class BoardComponent implements OnInit, OnDestroy {
       'bg-sky-100 text-sky-700': priority === 'MEDIUM',
       'bg-amber-100 text-amber-700': priority === 'HIGH',
       'bg-rose-100 text-rose-700': priority === 'CRITICAL',
+    };
+  }
+
+  statusClass(status: string): object {
+    return {
+      'status-todo': status === 'TO_DO',
+      'status-in-progress': status === 'IN_PROGRESS',
+      'status-in-review': status === 'IN_REVIEW',
+      'status-done': status === 'DONE',
     };
   }
 
@@ -1429,6 +1590,10 @@ export class BoardComponent implements OnInit, OnDestroy {
     return list.id;
   }
 
+  trackByArchivedCard(_: number, card: Card): number {
+    return card.id;
+  }
+
   private loadAssigneeUsers(cards: Card[]): void {
     const unresolvedIds = Array.from(
       new Set(cards.map(card => card.assigneeId).filter((userId): userId is number => userId != null))
@@ -1496,5 +1661,19 @@ export class BoardComponent implements OnInit, OnDestroy {
     this.store.dispatch(BoardActions.clearBoard());
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private tryOpenNotificationCard(): void {
+    if (!this.pendingNotificationCardId || this.openedNotificationCardId === this.pendingNotificationCardId) {
+      return;
+    }
+
+    const card = this.cards.find(existing => existing.id === this.pendingNotificationCardId);
+    if (!card) {
+      return;
+    }
+
+    this.openedNotificationCardId = card.id;
+    this.openCard(card, { fromNotification: true });
   }
 }

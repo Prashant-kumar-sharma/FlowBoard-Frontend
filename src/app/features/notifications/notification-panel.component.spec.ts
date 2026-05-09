@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
-import { MatDialog } from '@angular/material/dialog';
+import { Router } from '@angular/router';
 import { NotificationPanelComponent, NotificationDetailDialogComponent } from './notification-panel.component';
 import { NotificationService } from '../../core/services/notification.service';
 import { Notification } from '../../core/models/notification.model';
@@ -9,7 +9,7 @@ describe('NotificationPanelComponent', () => {
   let fixture: ComponentFixture<NotificationPanelComponent>;
   let component: NotificationPanelComponent;
   let notificationService: jasmine.SpyObj<NotificationService>;
-  let dialog: jasmine.SpyObj<MatDialog>;
+  let router: jasmine.SpyObj<Router>;
 
   const notifications: Notification[] = [
     {
@@ -18,6 +18,7 @@ describe('NotificationPanelComponent', () => {
       type: 'MENTION',
       title: 'New Mention',
       message: 'Alex mentioned you in "Marketing plan".',
+      deepLinkUrl: '/workspaces/1/boards/2/cards/3',
       isRead: false,
       createdAt: '2026-05-04T00:00:00Z'
     },
@@ -37,18 +38,19 @@ describe('NotificationPanelComponent', () => {
       'NotificationService',
       ['getAll', 'markAllRead', 'markRead', 'deleteRead']
     );
-    dialog = jasmine.createSpyObj<MatDialog>('MatDialog', ['open']);
+    router = jasmine.createSpyObj<Router>('Router', ['navigateByUrl']);
 
     notificationService.getAll.and.callFake(() => of(notifications.map((notification) => ({ ...notification }))));
     notificationService.markAllRead.and.returnValue(of(void 0));
     notificationService.markRead.and.returnValue(of(void 0));
     notificationService.deleteRead.and.returnValue(of(void 0));
+    router.navigateByUrl.and.resolveTo(true);
 
     await TestBed.configureTestingModule({
       imports: [NotificationPanelComponent],
       providers: [
         { provide: NotificationService, useValue: notificationService },
-        { provide: MatDialog, useValue: dialog }
+        { provide: Router, useValue: router }
       ]
     }).compileComponents();
 
@@ -71,25 +73,37 @@ describe('NotificationPanelComponent', () => {
     expect(component.notifications.every((notification) => notification.isRead)).toBeTrue();
   });
 
-  it('marks an unread notification as read and opens the detail dialog', () => {
+  it('marks an unread notification as read and expands it on first click', () => {
     const target = component.notifications[0];
 
     component.handleClick(target);
 
     expect(notificationService.markRead).toHaveBeenCalledWith(1);
     expect(target.isRead).toBeTrue();
-    expect(dialog.open).toHaveBeenCalledWith(NotificationDetailDialogComponent, jasmine.objectContaining({
-      data: target
-    }));
+    expect(component.expandedNotificationId).toBe(1);
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 
-  it('opens the detail dialog for already read notifications without calling markRead', () => {
+  it('navigates on second click for an expanded notification with a deep link', () => {
+    const target = component.notifications[0];
+
+    component.handleClick(target);
+    component.handleClick(target);
+
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/workspaces/1/boards/2/cards/3');
+  });
+
+  it('toggles expansion for notifications without a deep link', () => {
     const target = component.notifications[1];
 
     component.handleClick(target);
+    expect(notificationService.markRead).not.toHaveBeenCalled();
+    expect(component.expandedNotificationId).toBe(2);
 
     expect(notificationService.markRead).not.toHaveBeenCalled();
-    expect(dialog.open).toHaveBeenCalled();
+
+    component.handleClick(target);
+    expect(component.expandedNotificationId).toBeNull();
   });
 
   it('deletes read notifications from local state', () => {

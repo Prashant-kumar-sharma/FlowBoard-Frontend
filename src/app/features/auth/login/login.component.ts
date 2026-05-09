@@ -50,13 +50,25 @@ import { environment } from '../../../../environments/environment';
             </p>
 
             <form [formGroup]="form" (ngSubmit)="onSubmit()" class="mt-8 space-y-4">
-              <mat-form-field appearance="fill" class="login-form-field w-full">
-                <mat-label>Email</mat-label>
-                <input matInput type="email" formControlName="email" placeholder="you@example.com">
-                <mat-icon matPrefix>mail</mat-icon>
-                <mat-error *ngIf="form.get('email')?.hasError('required')">Email is required</mat-error>
-                <mat-error *ngIf="form.get('email')?.hasError('email')">Enter a valid email address</mat-error>
-              </mat-form-field>
+              <div *ngIf="!otpSent" class="space-y-4">
+                <mat-form-field appearance="fill" class="login-form-field w-full">
+                  <mat-label>Email</mat-label>
+                  <input matInput type="email" formControlName="email" placeholder="you@example.com">
+                  <mat-icon matPrefix>mail</mat-icon>
+                  <mat-error *ngIf="form.get('email')?.hasError('required')">Email is required</mat-error>
+                  <mat-error *ngIf="form.get('email')?.hasError('email')">Enter a valid email address</mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="fill" class="login-form-field w-full">
+                  <mat-label>Password</mat-label>
+                  <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password" placeholder="Enter your password">
+                  <mat-icon matPrefix>lock</mat-icon>
+                  <button mat-icon-button matSuffix type="button" (click)="hidePassword = !hidePassword">
+                    <mat-icon>{{ hidePassword ? 'visibility' : 'visibility_off' }}</mat-icon>
+                  </button>
+                  <mat-error *ngIf="form.get('password')?.hasError('required')">Password is required</mat-error>
+                </mat-form-field>
+              </div>
 
               <div *ngIf="otpSent" class="otp-panel">
                 <p class="otp-title">Your sign-in code is on its way</p>
@@ -73,9 +85,9 @@ import { environment } from '../../../../environments/environment';
                 </mat-form-field>
               </div>
 
-              <button mat-flat-button color="primary" type="submit" class="login-submit-button w-full" [disabled]="loading || form.get('email')?.invalid">
+              <button mat-flat-button color="primary" type="submit" class="login-submit-button w-full" [disabled]="loading || form.invalid">
                 <mat-spinner diameter="20" *ngIf="loading" class="login-spinner"></mat-spinner>
-                {{ loading ? (otpSent ? 'Verifying your code...' : 'Sending sign-in code...') : (otpSent ? 'Verify And Sign In' : 'Send Sign-In Code') }}
+                {{ loading ? (otpSent ? 'Verifying your code...' : 'Signing in...') : (otpSent ? 'Verify And Sign In' : 'Sign In') }}
               </button>
             </form>
 
@@ -122,6 +134,8 @@ import { environment } from '../../../../environments/environment';
     .login-submit-button { box-shadow: 0 18px 38px rgba(2, 132, 199, 0.22); }
     .google-button { border-color: rgba(148, 163, 184, 0.32) !important; color: #0f172a !important; background: rgba(255, 255, 255, 0.7) !important; }
     .login-spinner { display: inline-block; margin-right: 0.65rem; }
+    .otp-toggle-link { color: #0369a1; font-weight: 600; font-size: 0.9rem; }
+    .otp-toggle-link mat-icon { margin-right: 0.5rem; font-size: 1.2rem; width: 1.2rem; height: 1.2rem; }
     .otp-panel { border-radius: 1.25rem; border: 1px solid rgba(14, 165, 233, 0.18); background: rgba(240, 249, 255, 0.72); padding: 1rem; }
     .otp-title { margin: 0; font-size: 0.95rem; font-weight: 700; color: #0f172a; }
     .otp-copy { margin: 0.4rem 0 1rem; font-size: 0.9rem; line-height: 1.6; color: #475569; }
@@ -137,6 +151,7 @@ export class LoginComponent {
   form: FormGroup;
   loading = false;
   otpSent = false;
+  hidePassword = true;
   submittedEmail = '';
   googleOAuthUrl = `${environment.oauthBaseUrl}/oauth2/authorization/google`;
 
@@ -144,6 +159,7 @@ export class LoginComponent {
               private readonly router: Router, private readonly route: ActivatedRoute, private readonly snack: MatSnackBar) {
     this.form = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required]],
       otp: [''],
     });
 
@@ -156,12 +172,27 @@ export class LoginComponent {
   }
 
   onSubmit(): void {
-    if (this.loading || this.form.get('email')?.invalid) return;
+    if (this.loading || this.form.invalid) return;
+
     if (this.otpSent) {
       this.verifyOtp();
       return;
     }
+
     this.requestOtp();
+  }
+
+  public loginWithPassword(): void {
+    this.loading = true;
+    const { email, password } = this.form.value;
+
+    this.auth.login({ email: email.trim(), password }).subscribe({
+      next: () => this.router.navigateByUrl(this.auth.getHomeRoute()),
+      error: (err) => {
+        this.snack.open(err.error?.message || 'Login failed. Please check your credentials.', 'Close', { duration: 4000 });
+        this.loading = false;
+      }
+    });
   }
 
   resendOtp(): void {
@@ -178,20 +209,26 @@ export class LoginComponent {
     }
   }
 
-  private requestOtp(): void {
+  public requestOtp(): void {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
     this.loading = true;
-    const email = this.form.value.email.trim();
-    this.auth.requestLoginOtp(email).subscribe({
+    const { email, password } = this.form.value;
+
+    this.auth.requestLoginOtp({ email: email.trim(), password }).subscribe({
       next: (response) => {
         this.otpSent = true;
-        this.submittedEmail = email;
+        this.submittedEmail = email.trim();
         this.form.get('otp')?.setValidators([Validators.required, Validators.pattern(/^\d{6}$/)]);
         this.form.get('otp')?.updateValueAndValidity();
-        this.snack.open(response.message || 'Sign-in code sent to your email.', 'Close', { duration: 4000 });
+        this.snack.open(response.message || 'Verification code sent to your email.', 'Close', { duration: 4000 });
         this.loading = false;
       },
       error: (err) => {
-        this.snack.open(err.error?.message || 'Failed to send sign-in code', 'Close', { duration: 4000 });
+        this.snack.open(err.error?.message || 'Login failed. Please check your credentials.', 'Close', { duration: 4000 });
         this.loading = false;
       }
     });

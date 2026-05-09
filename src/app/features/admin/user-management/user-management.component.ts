@@ -58,6 +58,19 @@ import { AuthService } from '../../../core/auth/auth.service';
             </td>
           </ng-container>
 
+          <ng-container matColumnDef="premium">
+            <th mat-header-cell *matHeaderCellDef>Plan</th>
+            <td mat-cell *matCellDef="let user">
+              <span class="rounded-full px-2 py-1 text-xs font-semibold"
+                    [class.bg-amber-50]="user.premium"
+                    [class.text-amber-700]="user.premium"
+                    [class.bg-slate-100]="!user.premium"
+                    [class.text-slate-600]="!user.premium">
+                {{ user.premium ? 'Premium' : 'Free' }}
+              </span>
+            </td>
+          </ng-container>
+
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef>Actions</th>
             <td mat-cell *matCellDef="let user">
@@ -96,7 +109,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 })
 export class UserManagementComponent implements OnInit {
   users: User[] = [];
-  columns = ['name', 'email', 'role', 'status', 'actions'];
+  columns = ['name', 'email', 'role', 'status', 'premium', 'actions'];
 
   constructor(
     private adminService: AdminService,

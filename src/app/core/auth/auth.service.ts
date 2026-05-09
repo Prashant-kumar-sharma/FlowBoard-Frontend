@@ -38,8 +38,8 @@ export class AuthService {
       .pipe(tap(res => this.setSession(res)));
   }
 
-  requestLoginOtp(email: string): Observable<OtpChallengeResponse> {
-    return this.http.post<OtpChallengeResponse>(`${this.AUTH_BASE}/auth/login/request-otp`, { email });
+  requestLoginOtp(req: LoginRequest): Observable<OtpChallengeResponse> {
+    return this.http.post<OtpChallengeResponse>(`${this.AUTH_BASE}/auth/login/request-otp`, req);
   }
 
   verifyLoginOtp(email: string, otp: string): Observable<AuthResponse> {

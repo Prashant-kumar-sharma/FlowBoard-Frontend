@@ -53,7 +53,7 @@ export const boardReducer = createReducer(
 
   on(BoardActions.archiveCard, (state, { cardId }) => ({
     ...state,
-    cards: state.cards.filter(c => c.id !== cardId)
+    cards: state.cards.map(c => c.id === cardId ? { ...c, isArchived: true } : c)
   })),
 
   on(BoardActions.addList, (state, { list }) => ({

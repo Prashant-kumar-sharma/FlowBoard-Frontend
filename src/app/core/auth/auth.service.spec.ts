@@ -108,13 +108,13 @@ describe('AuthService', () => {
   });
 
   it('requests and verifies login OTP', () => {
-    service.requestLoginOtp('prashant@example.com').subscribe((response) => {
+    service.requestLoginOtp({ email: 'prashant@example.com', password: 'secret' }).subscribe((response) => {
       expect(response).toEqual({ message: 'OTP sent', expiresInSeconds: 300 });
     });
 
     const otpRequest = httpMock.expectOne('http://localhost:8081/api/v1/auth/login/request-otp');
     expect(otpRequest.request.method).toBe('POST');
-    expect(otpRequest.request.body).toEqual({ email: 'prashant@example.com' });
+    expect(otpRequest.request.body).toEqual({ email: 'prashant@example.com', password: 'secret' });
     otpRequest.flush({ message: 'OTP sent', expiresInSeconds: 300 });
 
     service.verifyLoginOtp('prashant@example.com', '654321').subscribe((response) => {

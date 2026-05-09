@@ -40,4 +40,7 @@ export class LabelService {
   getProgress(checklistId: number): Observable<{progress: number}> {
     return this.http.get<{progress: number}>(`${this.BASE}/checklists/${checklistId}/progress`);
   }
+  deleteChecklist(checklistId: number): Observable<void> {
+    return this.http.delete<void>(`${this.BASE}/checklists/${checklistId}`);
+  }
 }

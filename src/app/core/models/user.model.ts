@@ -8,6 +8,8 @@ export interface User {
   role: 'MEMBER' | 'BOARD_ADMIN' | 'PLATFORM_ADMIN';
   provider: 'LOCAL' | 'GOOGLE';
   isActive: boolean;
+  premium?: boolean;
+  planCode?: string;
   createdAt: string;
 }
 
