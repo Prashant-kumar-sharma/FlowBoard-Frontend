@@ -31,6 +31,9 @@ describe('CommentService', () => {
     service.getReplies(2).subscribe();
     httpMock.expectOne(`${base}/comments/2/replies`).flush([]);
 
+    service.getCount(1).subscribe();
+    httpMock.expectOne(`${base}/cards/1/comments/count`).flush(3);
+
     service.update(3, 'Updated').subscribe();
     httpMock.expectOne(`${base}/comments/3`).flush({});
 
@@ -50,6 +53,11 @@ describe('CommentService', () => {
     const upload = httpMock.expectOne(`${base}/cards/4/attachments/upload`);
     expect(upload.request.body instanceof FormData).toBeTrue();
     upload.flush({});
+
+    service.downloadFile('demo file.txt').subscribe();
+    const download = httpMock.expectOne(`${base}/files/demo%20file.txt`);
+    expect(download.request.responseType).toBe('blob');
+    download.flush(new Blob(['demo']));
 
     service.deleteAttachment(7).subscribe();
     const deleteAttachment = httpMock.expectOne(`${base}/attachments/7`);

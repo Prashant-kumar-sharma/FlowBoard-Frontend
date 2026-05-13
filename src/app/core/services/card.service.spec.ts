@@ -33,6 +33,9 @@ describe('CardService', () => {
     service.getByBoard(3).subscribe();
     httpMock.expectOne(`${cardBase}/board/3`).flush([]);
 
+    service.getByAssignee(6).subscribe();
+    httpMock.expectOne(`${cardBase}/assignee/6`).flush([]);
+
     service.update(1, { title: 'Updated' }).subscribe();
     httpMock.expectOne(`${cardBase}/1`).flush({});
 
@@ -63,6 +66,9 @@ describe('CardService', () => {
 
     service.getOverdue().subscribe();
     httpMock.expectOne(`${cardBase}/overdue`).flush([]);
+
+    service.getActivity(1).subscribe();
+    httpMock.expectOne(`${cardBase}/1/activity`).flush([]);
 
     service.getLists(9).subscribe();
     httpMock.expectOne(`${listBase}/board/9`).flush([]);

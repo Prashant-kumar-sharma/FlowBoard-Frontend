@@ -16,6 +16,12 @@ export class LabelService {
   createLabel(boardId: number, name: string, color: string): Observable<Label> {
     return this.http.post<Label>(`${this.BASE}/boards/${boardId}/labels`, { name, color });
   }
+  updateLabel(id: number, name: string, color: string): Observable<Label> {
+    return this.http.put<Label>(`${this.BASE}/labels/${id}`, { name, color });
+  }
+  deleteLabel(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.BASE}/labels/${id}`);
+  }
   addToCard(cardId: number, labelId: number): Observable<any> {
     return this.http.post(`${this.BASE}/cards/${cardId}/labels/${labelId}`, {});
   }

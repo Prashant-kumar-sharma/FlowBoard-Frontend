@@ -9,6 +9,7 @@ import { AuthResponse, LoginRequest, OtpChallengeResponse, RegisterRequest, User
 export class AuthService {
   private readonly TOKEN_KEY = 'flowboard_token';
   private readonly USER_KEY  = 'flowboard_user';
+  private readonly AVATAR_REVISION_KEY = 'flowboard_avatar_revision';
   private readonly BASE = environment.services.auth;
   private readonly AUTH_BASE = environment.oauthBaseUrl
     ? `${environment.oauthBaseUrl}/api/v1`
@@ -57,6 +58,15 @@ export class AuthService {
 
   confirmPasswordReset(email: string, otp: string, newPassword: string): Observable<void> {
     return this.http.post<void>(`${this.AUTH_BASE}/auth/reset-password/confirm`, { email, otp, newPassword });
+  }
+
+  logoutRequest(): Observable<void> {
+    return this.http.post<void>(`${this.AUTH_BASE}/auth/logout`, {});
+  }
+
+  refreshToken(refreshToken: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.AUTH_BASE}/auth/refresh`, { refreshToken })
+      .pipe(tap(res => this.setSession(res)));
   }
 
   logout(redirect = true): void {
@@ -147,12 +157,37 @@ export class AuthService {
     return this.http.get<User>(`${this.AUTH_BASE}/auth/users/${userId}`);
   }
 
+  getAllUsers(): Observable<User[]> {
+    return this.http.get<User[]>(`${this.AUTH_BASE}/auth/users`);
+  }
+
   updateProfile(req: Partial<Pick<User, 'fullName' | 'username' | 'bio' | 'avatarUrl'>>): Observable<User> {
     return this.http.put<User>(`${this.AUTH_BASE}/auth/profile`, req).pipe(
       tap(user => {
+        this.bumpAvatarRevision();
         this.storeUser(user);
       })
     );
+  }
+
+  changePassword(oldPassword: string, newPassword: string): Observable<void> {
+    return this.http.put<void>(`${this.AUTH_BASE}/auth/password`, { oldPassword, newPassword });
+  }
+
+  deactivateUser(userId: number): Observable<void> {
+    return this.http.patch<void>(`${this.AUTH_BASE}/auth/users/${userId}/deactivate`, {});
+  }
+
+  reactivateUser(userId: number): Observable<void> {
+    return this.http.patch<void>(`${this.AUTH_BASE}/auth/users/${userId}/reactivate`, {});
+  }
+
+  deleteUser(userId: number): Observable<void> {
+    return this.http.delete<void>(`${this.AUTH_BASE}/auth/users/${userId}`);
+  }
+
+  getAvatarRevision(): string {
+    return localStorage.getItem(this.AVATAR_REVISION_KEY) || '0';
   }
 
   private setSession(auth: AuthResponse): void {
@@ -168,5 +203,9 @@ export class AuthService {
   private loadUser(): User | null {
     const raw = localStorage.getItem(this.USER_KEY);
     return raw ? JSON.parse(raw) : null;
+  }
+
+  private bumpAvatarRevision(): void {
+    localStorage.setItem(this.AVATAR_REVISION_KEY, Date.now().toString());
   }
 }

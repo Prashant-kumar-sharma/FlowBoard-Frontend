@@ -40,6 +40,10 @@ export class NotificationService implements OnDestroy {
     return this.http.delete<void>(`${this.BASE}/notifications/read`);
   }
 
+  delete(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.BASE}/notifications/${id}`);
+  }
+
   /** Start polling for unread count every 30 seconds */
   startPolling(): void {
     if (this.pollSub) {

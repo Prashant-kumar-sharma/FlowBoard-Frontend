@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -71,10 +71,17 @@ import { User } from '../../core/models/user.model';
           <div class="p-6 text-center">
             <div
               class="mx-auto flex h-28 w-28 items-center justify-center rounded-full border-4 border-white bg-slate-900 text-3xl font-bold text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
-              [style.background-image]="getAvatarBackgroundImage(user.avatarUrl)"
-              style="background-position:center; background-repeat:no-repeat; background-size:cover;"
             >
-              <span *ngIf="!user.avatarUrl">{{ initials }}</span>
+              <img
+                *ngIf="getResolvedAvatarUrl(user.avatarUrl) as avatarSrc; else profileAvatarFallback"
+                [src]="avatarSrc"
+                [alt]="user.fullName + ' avatar'"
+                class="h-full w-full rounded-full object-cover"
+                (error)="markAvatarFailed(user.avatarUrl)"
+              >
+              <ng-template #profileAvatarFallback>
+                <span>{{ initials }}</span>
+              </ng-template>
             </div>
             <h1 class="mt-4 text-2xl font-semibold text-slate-900">{{ user.fullName }}</h1>
             <p class="mt-1 text-sm text-slate-500">&#64;{{ user.username }}</p>
@@ -108,6 +115,7 @@ import { User } from '../../core/models/user.model';
               <mat-form-field appearance="outline">
                 <mat-label>Avatar URL</mat-label>
                 <input matInput formControlName="avatarUrl" placeholder="https://example.com/avatar.png">
+                <mat-hint>Use a direct image URL. Some share-page links from Drive or social sites will not render as avatars.</mat-hint>
               </mat-form-field>
 
               <mat-form-field appearance="outline">
@@ -118,6 +126,49 @@ import { User } from '../../core/models/user.model';
               <div class="flex justify-end">
                 <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving">
                   {{ saving ? 'Saving...' : 'Save Profile' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </mat-card>
+
+        <mat-card class="rounded-3xl border border-slate-200/80 bg-white/94 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-sm md:col-span-2">
+          <div class="p-6">
+            <h2 class="text-xl font-semibold text-slate-900">Change Password</h2>
+            <p class="mt-1 text-sm text-slate-500">Use your current password, then choose a fresh one for your account.</p>
+
+            <form [formGroup]="passwordForm" (ngSubmit)="changePassword()" class="mt-6 grid gap-4 md:grid-cols-2">
+              <mat-form-field appearance="outline" class="md:col-span-2">
+                <mat-label>Current Password</mat-label>
+                <input matInput [type]="hideCurrentPassword ? 'password' : 'text'" formControlName="currentPassword">
+                <button mat-icon-button matSuffix type="button" (click)="hideCurrentPassword = !hideCurrentPassword" [attr.aria-label]="hideCurrentPassword ? 'Show current password' : 'Hide current password'">
+                  <mat-icon>{{ hideCurrentPassword ? 'visibility' : 'visibility_off' }}</mat-icon>
+                </button>
+                <mat-error *ngIf="passwordForm.get('currentPassword')?.hasError('required')">Current password is required</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>New Password</mat-label>
+                <input matInput [type]="hideNewPassword ? 'password' : 'text'" formControlName="newPassword">
+                <button mat-icon-button matSuffix type="button" (click)="hideNewPassword = !hideNewPassword" [attr.aria-label]="hideNewPassword ? 'Show new password' : 'Hide new password'">
+                  <mat-icon>{{ hideNewPassword ? 'visibility' : 'visibility_off' }}</mat-icon>
+                </button>
+                <mat-error *ngIf="newPasswordMessage">{{ newPasswordMessage }}</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Confirm New Password</mat-label>
+                <input matInput [type]="hideConfirmPassword ? 'password' : 'text'" formControlName="confirmPassword">
+                <button mat-icon-button matSuffix type="button" (click)="hideConfirmPassword = !hideConfirmPassword" [attr.aria-label]="hideConfirmPassword ? 'Show confirm password' : 'Hide confirm password'">
+                  <mat-icon>{{ hideConfirmPassword ? 'visibility' : 'visibility_off' }}</mat-icon>
+                </button>
+                <mat-error *ngIf="passwordForm.get('confirmPassword')?.hasError('required')">Please confirm your new password</mat-error>
+                <mat-error *ngIf="passwordForm.hasError('passwordMismatch') && passwordForm.get('confirmPassword')?.touched">Passwords must match</mat-error>
+              </mat-form-field>
+
+              <div class="flex justify-end md:col-span-2">
+                <button mat-flat-button color="primary" type="submit" [disabled]="passwordForm.invalid || changingPassword">
+                  {{ changingPassword ? 'Updating Password...' : 'Update Password' }}
                 </button>
               </div>
             </form>
@@ -162,6 +213,11 @@ import { User } from '../../core/models/user.model';
 export class ProfileComponent implements OnInit {
   user: User | null = null;
   saving = false;
+  changingPassword = false;
+  hideCurrentPassword = true;
+  hideNewPassword = true;
+  hideConfirmPassword = true;
+  private readonly failedAvatarUrls = new Set<string>();
 
   readonly form = new FormGroup({
     fullName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -169,6 +225,12 @@ export class ProfileComponent implements OnInit {
     avatarUrl: new FormControl('', { nonNullable: true }),
     bio: new FormControl('', { nonNullable: true }),
   });
+
+  readonly passwordForm = new FormGroup({
+    currentPassword: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    newPassword: new FormControl('', { nonNullable: true, validators: [Validators.required, this.passwordValidator] }),
+    confirmPassword: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+  }, { validators: this.passwordMatchValidator });
 
   constructor(
     private readonly authService: AuthService,
@@ -189,6 +251,18 @@ export class ProfileComponent implements OnInit {
 
   get initials(): string {
     return this.user?.fullName?.trim()?.charAt(0)?.toUpperCase() || '?';
+  }
+
+  get newPasswordMessage(): string {
+    const password = this.passwordForm.get('newPassword');
+    if (!password?.touched || !password.errors) return '';
+    if (password.hasError('required')) return 'New password is required';
+    if (password.hasError('minLengthPassword')) return 'Use at least 8 characters';
+    if (password.hasError('missingLowercase')) return 'Add at least one lowercase letter';
+    if (password.hasError('missingUppercase')) return 'Add at least one uppercase letter';
+    if (password.hasError('missingNumber')) return 'Add at least one number';
+    if (password.hasError('missingSpecial')) return 'Add at least one special character';
+    return '';
   }
 
   save(): void {
@@ -220,6 +294,35 @@ export class ProfileComponent implements OnInit {
     });
   }
 
+  changePassword(): void {
+    this.passwordForm.markAllAsTouched();
+    if (this.passwordForm.invalid || this.passwordForm.hasError('passwordMismatch')) {
+      return;
+    }
+
+    this.changingPassword = true;
+    const value = this.passwordForm.getRawValue();
+    this.authService.changePassword(value.currentPassword, value.newPassword).subscribe({
+      next: () => {
+        this.changingPassword = false;
+        this.passwordForm.reset({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        this.snack.open('Password updated successfully', 'Close', { duration: 3000 });
+      },
+      error: (err) => {
+        this.changingPassword = false;
+        const message =
+          err?.error?.message ||
+          err?.message ||
+          'Failed to update password' + (err?.status ? ' (' + err.status + ')' : '');
+        this.snack.open(message, 'Close', { duration: 4500 });
+      }
+    });
+  }
+
   private setUser(user: User): void {
     this.user = user;
     this.form.setValue({
@@ -230,9 +333,14 @@ export class ProfileComponent implements OnInit {
     });
   }
 
-  getAvatarBackgroundImage(url: string | undefined): string | null {
+  getResolvedAvatarUrl(url: string | undefined): string | null {
     const safeUrl = this.normalizeAvatarUrl(url);
-    return safeUrl ? `url("${safeUrl}")` : null;
+    if (!safeUrl) {
+      return null;
+    }
+
+    const resolved = this.appendAvatarRevision(safeUrl);
+    return this.failedAvatarUrls.has(resolved) ? null : resolved;
   }
 
   private normalizeAvatarUrl(url: string | undefined): string | null {
@@ -251,5 +359,41 @@ export class ProfileComponent implements OnInit {
     } catch {
       return null;
     }
+  }
+
+  private appendAvatarRevision(url: string): string {
+    try {
+      const parsed = new URL(url);
+      parsed.searchParams.set('avatarRev', this.authService.getAvatarRevision());
+      return parsed.toString();
+    } catch {
+      return url;
+    }
+  }
+
+  markAvatarFailed(url: string | undefined): void {
+    const safeUrl = this.normalizeAvatarUrl(url);
+    if (!safeUrl) {
+      return;
+    }
+
+    this.failedAvatarUrls.add(this.appendAvatarRevision(safeUrl));
+  }
+
+  private passwordValidator(control: AbstractControl): ValidationErrors | null {
+    const value = String(control.value || '');
+    if (!value) return null;
+    if (value.length < 8) return { minLengthPassword: true };
+    if (!/[a-z]/.test(value)) return { missingLowercase: true };
+    if (!/[A-Z]/.test(value)) return { missingUppercase: true };
+    if (!/\d/.test(value)) return { missingNumber: true };
+    if (!/[^A-Za-z0-9]/.test(value)) return { missingSpecial: true };
+    return null;
+  }
+
+  private passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
+    const password = control.get('newPassword')?.value;
+    const confirmPassword = control.get('confirmPassword')?.value;
+    return password && confirmPassword && password !== confirmPassword ? { passwordMismatch: true } : null;
   }
 }

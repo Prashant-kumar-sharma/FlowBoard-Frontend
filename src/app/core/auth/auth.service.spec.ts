@@ -4,11 +4,13 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Router } from '@angular/router';
 import { AuthService } from './auth.service';
 import { AuthResponse, User } from '../models/user.model';
+import { environment } from '../../../environments/environment';
 
 describe('AuthService', () => {
   let service: AuthService;
   let httpMock: HttpTestingController;
   let router: jasmine.SpyObj<Router>;
+  const authBaseUrl = `${environment.oauthBaseUrl}/api/v1/auth`;
 
   const user: User = {
     id: 1,
@@ -54,7 +56,7 @@ describe('AuthService', () => {
       expect(response).toEqual(authResponse);
     });
 
-    const request = httpMock.expectOne('http://localhost:8081/api/v1/auth/login');
+    const request = httpMock.expectOne(`${authBaseUrl}/login`);
     expect(request.request.method).toBe('POST');
     request.flush(authResponse);
 
@@ -73,7 +75,7 @@ describe('AuthService', () => {
       expect(response).toEqual(authResponse);
     });
 
-    const request = httpMock.expectOne('http://localhost:8081/api/v1/auth/register');
+    const request = httpMock.expectOne(`${authBaseUrl}/register`);
     expect(request.request.method).toBe('POST');
     request.flush(authResponse);
 
@@ -91,7 +93,7 @@ describe('AuthService', () => {
       expect(response).toEqual({ message: 'OTP sent', expiresInSeconds: 300 });
     });
 
-    const otpRequest = httpMock.expectOne('http://localhost:8081/api/v1/auth/register/request-otp');
+    const otpRequest = httpMock.expectOne(`${authBaseUrl}/register/request-otp`);
     expect(otpRequest.request.method).toBe('POST');
     otpRequest.flush({ message: 'OTP sent', expiresInSeconds: 300 });
 
@@ -99,7 +101,7 @@ describe('AuthService', () => {
       expect(response).toEqual(authResponse);
     });
 
-    const verifyRequest = httpMock.expectOne('http://localhost:8081/api/v1/auth/register/verify-otp');
+    const verifyRequest = httpMock.expectOne(`${authBaseUrl}/register/verify-otp`);
     expect(verifyRequest.request.method).toBe('POST');
     expect(verifyRequest.request.body).toEqual({ email: 'prashant@example.com', otp: '123456' });
     verifyRequest.flush(authResponse);
@@ -112,7 +114,7 @@ describe('AuthService', () => {
       expect(response).toEqual({ message: 'OTP sent', expiresInSeconds: 300 });
     });
 
-    const otpRequest = httpMock.expectOne('http://localhost:8081/api/v1/auth/login/request-otp');
+    const otpRequest = httpMock.expectOne(`${authBaseUrl}/login/request-otp`);
     expect(otpRequest.request.method).toBe('POST');
     expect(otpRequest.request.body).toEqual({ email: 'prashant@example.com', password: 'secret' });
     otpRequest.flush({ message: 'OTP sent', expiresInSeconds: 300 });
@@ -121,7 +123,7 @@ describe('AuthService', () => {
       expect(response).toEqual(authResponse);
     });
 
-    const verifyRequest = httpMock.expectOne('http://localhost:8081/api/v1/auth/login/verify-otp');
+    const verifyRequest = httpMock.expectOne(`${authBaseUrl}/login/verify-otp`);
     expect(verifyRequest.request.method).toBe('POST');
     expect(verifyRequest.request.body).toEqual({ email: 'prashant@example.com', otp: '654321' });
     verifyRequest.flush(authResponse);
@@ -131,7 +133,7 @@ describe('AuthService', () => {
 
   it('handles password reset flows', () => {
     service.resetPassword('prashant@example.com', 'new-secret').subscribe();
-    const resetRequest = httpMock.expectOne('http://localhost:8081/api/v1/auth/reset-password');
+    const resetRequest = httpMock.expectOne(`${authBaseUrl}/reset-password`);
     expect(resetRequest.request.method).toBe('POST');
     expect(resetRequest.request.body).toEqual({ email: 'prashant@example.com', newPassword: 'new-secret' });
     resetRequest.flush({});
@@ -139,13 +141,13 @@ describe('AuthService', () => {
     service.requestPasswordResetOtp('prashant@example.com').subscribe((response) => {
       expect(response).toEqual({ message: 'OTP sent', expiresInSeconds: 300 });
     });
-    const requestOtp = httpMock.expectOne('http://localhost:8081/api/v1/auth/reset-password/request-otp');
+    const requestOtp = httpMock.expectOne(`${authBaseUrl}/reset-password/request-otp`);
     expect(requestOtp.request.method).toBe('POST');
     expect(requestOtp.request.body).toEqual({ email: 'prashant@example.com' });
     requestOtp.flush({ message: 'OTP sent', expiresInSeconds: 300 });
 
     service.confirmPasswordReset('prashant@example.com', '111222', 'fresh-secret').subscribe();
-    const confirmRequest = httpMock.expectOne('http://localhost:8081/api/v1/auth/reset-password/confirm');
+    const confirmRequest = httpMock.expectOne(`${authBaseUrl}/reset-password/confirm`);
     expect(confirmRequest.request.method).toBe('POST');
     expect(confirmRequest.request.body).toEqual({
       email: 'prashant@example.com',
@@ -155,10 +157,29 @@ describe('AuthService', () => {
     confirmRequest.flush({});
   });
 
+  it('calls logout and refresh endpoints', () => {
+    service.logoutRequest().subscribe();
+    const logoutRequest = httpMock.expectOne(`${authBaseUrl}/logout`);
+    expect(logoutRequest.request.method).toBe('POST');
+    expect(logoutRequest.request.body).toEqual({});
+    logoutRequest.flush({});
+
+    service.refreshToken('refresh-123').subscribe((response) => {
+      expect(response).toEqual(authResponse);
+    });
+    const refreshRequest = httpMock.expectOne(`${authBaseUrl}/refresh`);
+    expect(refreshRequest.request.method).toBe('POST');
+    expect(refreshRequest.request.body).toEqual({ refreshToken: 'refresh-123' });
+    refreshRequest.flush(authResponse);
+
+    expect(localStorage.getItem('flowboard_token')).toBe('token-123');
+    expect(service.getCurrentUser()).toEqual(user);
+  });
+
   it('redirects to the user home route after a successful OAuth callback', () => {
     service.handleOAuthCallback('oauth-token');
 
-    const request = httpMock.expectOne('http://localhost:8081/api/v1/auth/profile');
+    const request = httpMock.expectOne(`${authBaseUrl}/profile`);
     expect(request.request.method).toBe('GET');
     request.flush(user);
 
@@ -170,7 +191,7 @@ describe('AuthService', () => {
   it('clears session and redirects to login when OAuth callback profile fetch fails', () => {
     service.handleOAuthCallback('oauth-token');
 
-    const request = httpMock.expectOne('http://localhost:8081/api/v1/auth/profile');
+    const request = httpMock.expectOne(`${authBaseUrl}/profile`);
     request.flush({ message: 'nope' }, { status: 500, statusText: 'Server Error' });
 
     expect(localStorage.getItem('flowboard_token')).toBeNull();
@@ -186,7 +207,7 @@ describe('AuthService', () => {
     service = TestBed.inject(AuthService);
     service.ensureCurrentUserLoaded();
 
-    const request = httpMock.expectOne('http://localhost:8081/api/v1/auth/profile');
+    const request = httpMock.expectOne(`${authBaseUrl}/profile`);
     request.flush(user);
 
     expect(service.getCurrentUser()).toEqual(user);
@@ -198,7 +219,7 @@ describe('AuthService', () => {
     service = TestBed.inject(AuthService);
     service.ensureCurrentUserLoaded();
 
-    const request = httpMock.expectOne('http://localhost:8081/api/v1/auth/profile');
+    const request = httpMock.expectOne(`${authBaseUrl}/profile`);
     request.flush({ message: 'nope' }, { status: 500, statusText: 'Server Error' });
 
     expect(localStorage.getItem('flowboard_token')).toBeNull();
@@ -208,13 +229,13 @@ describe('AuthService', () => {
 
   it('does not fetch the current user when no token or cached user already exists', () => {
     service.ensureCurrentUserLoaded();
-    httpMock.expectNone('http://localhost:8081/api/v1/auth/profile');
+    httpMock.expectNone(`${authBaseUrl}/profile`);
 
     localStorage.setItem('flowboard_token', 'token-123');
     (service as any).currentUserSubject.next(user);
 
     service.ensureCurrentUserLoaded();
-    httpMock.expectNone('http://localhost:8081/api/v1/auth/profile');
+    httpMock.expectNone(`${authBaseUrl}/profile`);
     expect(service.getCurrentUser()).toEqual(user);
   });
 
@@ -281,11 +302,24 @@ describe('AuthService', () => {
       expect(response.fullName).toBe('Updated Name');
     });
 
-    const request = httpMock.expectOne('http://localhost:8081/api/v1/auth/profile');
+    const request = httpMock.expectOne(`${authBaseUrl}/profile`);
     expect(request.request.method).toBe('PUT');
     request.flush({ ...user, fullName: 'Updated Name' });
 
     expect(service.getCurrentUser()?.fullName).toBe('Updated Name');
+    expect(service.getAvatarRevision()).not.toBe('0');
+  });
+
+  it('sends the authenticated change password request', () => {
+    service.changePassword('old-secret', 'new-secret').subscribe();
+
+    const request = httpMock.expectOne(`${authBaseUrl}/password`);
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({
+      oldPassword: 'old-secret',
+      newPassword: 'new-secret'
+    });
+    request.flush({});
   });
 
   it('fetches the current profile and stores it', () => {
@@ -293,7 +327,7 @@ describe('AuthService', () => {
       expect(response).toEqual(user);
     });
 
-    const request = httpMock.expectOne('http://localhost:8081/api/v1/auth/profile');
+    const request = httpMock.expectOne(`${authBaseUrl}/profile`);
     expect(request.request.method).toBe('GET');
     request.flush(user);
 
@@ -305,7 +339,7 @@ describe('AuthService', () => {
       expect(response).toEqual([user]);
     });
 
-    const searchRequest = httpMock.expectOne('http://localhost:8081/api/v1/auth/search?q=pra');
+    const searchRequest = httpMock.expectOne(`${authBaseUrl}/search?q=pra`);
     expect(searchRequest.request.method).toBe('GET');
     searchRequest.flush([user]);
 
@@ -313,9 +347,33 @@ describe('AuthService', () => {
       expect(response).toEqual(user);
     });
 
-    const userRequest = httpMock.expectOne('http://localhost:8081/api/v1/auth/users/1');
+    const userRequest = httpMock.expectOne(`${authBaseUrl}/users/1`);
     expect(userRequest.request.method).toBe('GET');
     userRequest.flush(user);
+  });
+
+  it('covers auth-managed user administration endpoints', () => {
+    service.getAllUsers().subscribe((response) => {
+      expect(response).toEqual([user]);
+    });
+    const usersRequest = httpMock.expectOne(`${authBaseUrl}/users`);
+    expect(usersRequest.request.method).toBe('GET');
+    usersRequest.flush([user]);
+
+    service.deactivateUser(1).subscribe();
+    const deactivateRequest = httpMock.expectOne(`${authBaseUrl}/users/1/deactivate`);
+    expect(deactivateRequest.request.method).toBe('PATCH');
+    deactivateRequest.flush({});
+
+    service.reactivateUser(1).subscribe();
+    const reactivateRequest = httpMock.expectOne(`${authBaseUrl}/users/1/reactivate`);
+    expect(reactivateRequest.request.method).toBe('PATCH');
+    reactivateRequest.flush({});
+
+    service.deleteUser(1).subscribe();
+    const deleteRequest = httpMock.expectOne(`${authBaseUrl}/users/1`);
+    expect(deleteRequest.request.method).toBe('DELETE');
+    deleteRequest.flush({});
   });
 
   it('clears the session and redirects on logout by default', () => {

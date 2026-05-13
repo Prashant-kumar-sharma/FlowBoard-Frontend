@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Card, CardPriority, CardStatus, CreateCardRequest, TaskList } from '../models/card.model';
+import { Card, CardActivityEvent, CardPriority, CardStatus, CreateCardRequest, TaskList } from '../models/card.model';
 
 @Injectable({ providedIn: 'root' })
 export class CardService {
@@ -22,6 +22,9 @@ export class CardService {
   }
   getByBoard(boardId: number): Observable<Card[]> {
     return this.http.get<Card[]>(`${this.CARD}/cards/board/${boardId}`);
+  }
+  getByAssignee(userId: number): Observable<Card[]> {
+    return this.http.get<Card[]>(`${this.CARD}/cards/assignee/${userId}`);
   }
   update(id: number, req: Partial<CreateCardRequest>): Observable<Card> {
     return this.http.put<Card>(`${this.CARD}/cards/${id}`, req);
@@ -52,6 +55,9 @@ export class CardService {
   }
   getOverdue(): Observable<Card[]> {
     return this.http.get<Card[]>(`${this.CARD}/cards/overdue`);
+  }
+  getActivity(id: number): Observable<CardActivityEvent[]> {
+    return this.http.get<CardActivityEvent[]>(`${this.CARD}/cards/${id}/activity`);
   }
 
   // Lists

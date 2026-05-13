@@ -23,11 +23,13 @@ describe('ProfileComponent', () => {
   };
 
   function createComponent(currentUser: User | null = user) {
-    auth = jasmine.createSpyObj<AuthService>('AuthService', ['getCurrentUser', 'fetchProfile', 'updateProfile']);
+    auth = jasmine.createSpyObj<AuthService>('AuthService', ['getCurrentUser', 'fetchProfile', 'updateProfile', 'changePassword', 'getAvatarRevision']);
     snack = jasmine.createSpyObj<MatSnackBar>('MatSnackBar', ['open']);
     auth.getCurrentUser.and.returnValue(currentUser);
     auth.fetchProfile.and.returnValue(of(user));
     auth.updateProfile.and.returnValue(of(user));
+    auth.changePassword.and.returnValue(of(void 0));
+    auth.getAvatarRevision.and.returnValue('123');
     component = new ProfileComponent(auth, snack);
   }
 
@@ -52,6 +54,15 @@ describe('ProfileComponent', () => {
     component.form.get('fullName')?.setValue('');
     component.save();
     expect(auth.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('does not change password while invalid', () => {
+    createComponent();
+    component.ngOnInit();
+
+    component.changePassword();
+
+    expect(auth.changePassword).not.toHaveBeenCalled();
   });
 
   it('saves trimmed profile data successfully', () => {
@@ -88,10 +99,63 @@ describe('ProfileComponent', () => {
 
     expect(snack.open).toHaveBeenCalledWith('Boom', 'Close', { duration: 4500 });
     expect(component.saving).toBeFalse();
-    expect(component.getAvatarBackgroundImage(undefined)).toBeNull();
-    expect(component.getAvatarBackgroundImage('https://example.com/a.png')).toContain('url("https://example.com/a.png")');
-    expect(component.getAvatarBackgroundImage('http://example.com/a.png')).toContain('url("http://example.com/a.png")');
-    expect(component.getAvatarBackgroundImage('javascript:alert(1)')).toBeNull();
-    expect(component.getAvatarBackgroundImage('not a url')).toBeNull();
+    expect(component.getResolvedAvatarUrl(undefined)).toBeNull();
+    expect(component.getResolvedAvatarUrl('https://example.com/a.png')).toContain('avatarRev=123');
+    expect(component.getResolvedAvatarUrl('http://example.com/a.png')).toContain('avatarRev=123');
+    expect(component.getResolvedAvatarUrl('javascript:alert(1)')).toBeNull();
+    expect(component.getResolvedAvatarUrl('not a url')).toBeNull();
+    component.markAvatarFailed('https://example.com/a.png');
+    expect(component.getResolvedAvatarUrl('https://example.com/a.png')).toBeNull();
+  });
+
+  it('changes the password and clears the form on success', () => {
+    createComponent();
+    component.ngOnInit();
+    component.passwordForm.setValue({
+      currentPassword: 'Old@1234',
+      newPassword: 'New@1234',
+      confirmPassword: 'New@1234'
+    });
+
+    component.changePassword();
+
+    expect(auth.changePassword).toHaveBeenCalledWith('Old@1234', 'New@1234');
+    expect(component.passwordForm.getRawValue()).toEqual({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    expect(component.changingPassword).toBeFalse();
+    expect(snack.open).toHaveBeenCalledWith('Password updated successfully', 'Close', { duration: 3000 });
+  });
+
+  it('shows password validation and change-password errors', () => {
+    createComponent();
+    component.ngOnInit();
+
+    const newPassword = component.passwordForm.get('newPassword');
+    newPassword?.setValue('short');
+    newPassword?.markAsTouched();
+    expect(component.newPasswordMessage).toBe('Use at least 8 characters');
+
+    component.passwordForm.setValue({
+      currentPassword: 'Old@1234',
+      newPassword: 'New@1234',
+      confirmPassword: 'Mismatch@123'
+    });
+    component.changePassword();
+    expect(auth.changePassword).not.toHaveBeenCalled();
+
+    component.passwordForm.setValue({
+      currentPassword: 'Old@1234',
+      newPassword: 'New@1234',
+      confirmPassword: 'New@1234'
+    });
+    auth.changePassword.and.returnValue(throwError(() => ({ error: { message: 'Current password is incorrect' } })));
+
+    component.changePassword();
+
+    expect(component.changingPassword).toBeFalse();
+    expect(snack.open).toHaveBeenCalledWith('Current password is incorrect', 'Close', { duration: 4500 });
   });
 });

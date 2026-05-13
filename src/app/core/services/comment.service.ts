@@ -18,6 +18,9 @@ export class CommentService {
   getReplies(commentId: number): Observable<Comment[]> {
     return this.http.get<Comment[]>(`${this.BASE}/comments/${commentId}/replies`);
   }
+  getCount(cardId: number): Observable<number> {
+    return this.http.get<number>(`${this.BASE}/cards/${cardId}/comments/count`);
+  }
   update(id: number, content: string): Observable<Comment> {
     return this.http.put<Comment>(`${this.BASE}/comments/${id}`, { content });
   }
@@ -34,6 +37,9 @@ export class CommentService {
     const formData = new FormData();
     formData.append('file', file);
     return this.http.post<Attachment>(`${this.BASE}/cards/${cardId}/attachments/upload`, formData);
+  }
+  downloadFile(filename: string): Observable<Blob> {
+    return this.http.get(`${this.BASE}/files/${encodeURIComponent(filename)}`, { responseType: 'blob' });
   }
   deleteAttachment(id: number): Observable<void> {
     return this.http.delete<void>(`${this.BASE}/attachments/${id}`);

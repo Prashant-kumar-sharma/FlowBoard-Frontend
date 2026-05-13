@@ -26,6 +26,17 @@ describe('LabelService', () => {
     service.createLabel(1, 'Bug', '#f00').subscribe();
     httpMock.expectOne(`${base}/boards/1/labels`).flush({});
 
+    service.updateLabel(3, 'Feature', '#0f0').subscribe();
+    const update = httpMock.expectOne(`${base}/labels/3`);
+    expect(update.request.method).toBe('PUT');
+    expect(update.request.body).toEqual({ name: 'Feature', color: '#0f0' });
+    update.flush({});
+
+    service.deleteLabel(3).subscribe();
+    const deleteLabel = httpMock.expectOne(`${base}/labels/3`);
+    expect(deleteLabel.request.method).toBe('DELETE');
+    deleteLabel.flush({});
+
     service.addToCard(2, 3).subscribe();
     httpMock.expectOne(`${base}/cards/2/labels/3`).flush({});
 

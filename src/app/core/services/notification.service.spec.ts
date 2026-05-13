@@ -111,6 +111,14 @@ describe('NotificationService', () => {
     request.flush({});
   });
 
+  it('deletes a single notification', () => {
+    service.delete(11).subscribe();
+
+    const request = httpMock.expectOne(`${baseUrl}/11`);
+    expect(request.request.method).toBe('DELETE');
+    request.flush({});
+  });
+
   it('starts polling unread count and avoids starting twice', fakeAsync(() => {
     service.startPolling();
     service.startPolling();

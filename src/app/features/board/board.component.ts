@@ -32,25 +32,29 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
   standalone: true,
   imports: [CommonModule, RouterLink, DragDropModule, MatButtonModule, MatIconModule],
   template: `
-    <div class="board-shell m-1 flex min-h-[calc(100vh-0.5rem)] flex-col overflow-y-auto overflow-x-hidden rounded-[28px] border border-slate-950/20 shadow-[0_28px_70px_rgba(15,23,42,0.28)]" [style.background]="currentBoard?.background || '#0f172a'">
+    <div
+      class="board-shell flex min-h-screen flex-col overflow-y-auto overflow-x-hidden border border-slate-950/20 shadow-[0_28px_70px_rgba(15,23,42,0.28)]"
+      [class.board-theme-light]="useLightBoardTheme"
+      [style.background]="currentBoard?.background || '#0f172a'"
+    >
       <div class="board-overlay"></div>
 
       <section class="relative border-b border-white/10 bg-slate-950/18 backdrop-blur-xl">
         <div class="mx-auto flex max-w-[1600px] flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="min-w-0">
-              <div class="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/65">
-                <a routerLink="/dashboard" class="transition hover:text-white">Workspaces</a>
+              <div class="board-crumbs mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em]">
+                <a routerLink="/dashboard" class="board-crumb-link transition">Workspaces</a>
                 <span>/</span>
                 <a
                   *ngIf="currentBoard?.workspaceId"
                   [routerLink]="['/workspace', currentBoard?.workspaceId]"
-                  class="transition hover:text-white"
+                  class="board-crumb-link transition"
                 >
                   Workspace
                 </a>
                 <span *ngIf="currentBoard?.workspaceId">/</span>
-                <span class="text-white/88">Board</span>
+                <span class="board-crumb-current">Board</span>
               </div>
 
               <div class="flex items-start gap-4">
@@ -59,12 +63,12 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
                 </div>
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-3">
-                    <h1 class="truncate text-3xl font-semibold text-white sm:text-4xl">{{ currentBoard?.name }}</h1>
+                    <h1 class="board-title truncate text-3xl font-semibold sm:text-4xl">{{ currentBoard?.name }}</h1>
                     <span *ngIf="currentBoard?.isClosed" class="rounded-full border border-amber-200/30 bg-amber-400/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
                       Closed
                     </span>
                   </div>
-                  <p class="mt-2 max-w-2xl text-sm leading-7 text-slate-200/84 sm:text-base">
+                  <p class="board-description mt-2 max-w-2xl text-sm leading-7 sm:text-base">
                     {{ currentBoard?.description || 'A refined execution surface for moving work across lists with more clarity and less visual noise.' }}
                   </p>
                 </div>
@@ -174,8 +178,8 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
               <article *ngFor="let member of boardMembers; trackBy: trackByBoardMember" class="board-member-card">
                 <div class="board-member-avatar">{{ getBoardMemberInitials(member.userId) }}</div>
                 <div class="min-w-0 flex-1">
-                  <p class="truncate text-sm font-semibold text-slate-900">{{ getBoardMemberLabel(member.userId) }}</p>
-                  <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{{ member.role }}</p>
+                  <p class="board-member-name truncate text-sm font-semibold">{{ getBoardMemberLabel(member.userId) }}</p>
+                  <p class="board-member-meta text-xs uppercase tracking-[0.16em]">{{ member.role }}</p>
                 </div>
                 <button
                   *ngIf="canManageBoard && canChangeBoardMemberRole(member)"
@@ -211,8 +215,8 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
                 <div class="mt-4 flex flex-wrap gap-3">
                   <article *ngFor="let archived of archivedLists; trackBy: trackByArchivedList" class="archived-list-card">
                     <div class="min-w-0 flex-1">
-                      <p class="truncate text-sm font-semibold text-slate-900">{{ archived.name }}</p>
-                      <p class="text-xs uppercase tracking-[0.16em] text-slate-500">Archived List</p>
+                      <p class="archived-item-name truncate text-sm font-semibold">{{ archived.name }}</p>
+                      <p class="archived-item-meta text-xs uppercase tracking-[0.16em]">Archived List</p>
                     </div>
                     <div class="flex gap-2">
                       <button mat-stroked-button type="button" class="archived-list-action" (click)="restoreList(archived)">
@@ -237,8 +241,8 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
                 <div class="mt-4 flex flex-wrap gap-3">
                   <article *ngFor="let card of archivedCards; trackBy: trackByArchivedCard" class="archived-list-card">
                     <div class="min-w-0 flex-1">
-                      <p class="truncate text-sm font-semibold text-slate-900">{{ card.title }}</p>
-                      <p class="text-xs uppercase tracking-[0.16em] text-slate-500">Archived Card</p>
+                      <p class="archived-item-name truncate text-sm font-semibold">{{ card.title }}</p>
+                      <p class="archived-item-meta text-xs uppercase tracking-[0.16em]">Archived Card</p>
                     </div>
                     <div class="flex gap-2">
                       <button mat-stroked-button type="button" class="archived-list-action" (click)="restoreCard(card)">
@@ -422,6 +426,23 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
       pointer-events: none;
     }
 
+    .board-crumbs {
+      color: rgba(255,255,255,0.68);
+    }
+
+    .board-crumb-link:hover,
+    .board-crumb-current {
+      color: rgba(255,255,255,0.94);
+    }
+
+    .board-title {
+      color: #ffffff;
+    }
+
+    .board-description {
+      color: rgba(226, 232, 240, 0.9);
+    }
+
     .board-mark {
       display: flex;
       height: 4rem;
@@ -522,6 +543,17 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
       color: rgba(226, 232, 240, 0.86);
     }
 
+    .board-member-name,
+    .archived-item-name {
+      color: #0f172a;
+    }
+
+    .board-member-meta,
+    .archived-item-meta {
+      color: rgba(15, 23, 42, 0.58);
+      font-weight: 700;
+    }
+
     .board-member-card {
       display: flex;
       align-items: center;
@@ -590,6 +622,84 @@ import { MoveListDialogComponent } from './move-list-dialog.component';
       border-color: rgba(248,113,113,0.24) !important;
       color: #b91c1c !important;
       background: rgba(255,255,255,0.82) !important;
+    }
+
+    .board-theme-light .board-overlay {
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.2), transparent 26rem),
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(15,23,42,0.08) 22%, rgba(15,23,42,0.04) 100%);
+    }
+
+    .board-theme-light .board-crumbs {
+      color: rgba(15, 23, 42, 0.62);
+    }
+
+    .board-theme-light .board-crumb-link:hover,
+    .board-theme-light .board-crumb-current {
+      color: rgba(15, 23, 42, 0.94);
+    }
+
+    .board-theme-light .board-title {
+      color: #0f172a;
+    }
+
+    .board-theme-light .board-description,
+    .board-theme-light .board-metric-copy,
+    .board-theme-light .board-members-copy {
+      color: rgba(15, 23, 42, 0.74);
+    }
+
+    .board-theme-light .board-metric,
+    .board-theme-light .board-members-panel,
+    .board-theme-light .board-archived-panel {
+      border-color: rgba(15, 23, 42, 0.1);
+      background: rgba(255,255,255,0.22);
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+    }
+
+    .board-theme-light .board-metric-label,
+    .board-theme-light .board-members-eyebrow {
+      color: rgba(15, 23, 42, 0.58);
+    }
+
+    .board-theme-light .board-metric-value {
+      color: #0f172a;
+    }
+
+    .board-theme-light .board-mark {
+      border-color: rgba(15, 23, 42, 0.12);
+      background: rgba(255,255,255,0.28);
+      color: #0f172a;
+      box-shadow: 0 16px 34px rgba(15,23,42,0.12);
+    }
+
+    .board-theme-light .board-secondary-button {
+      border-color: rgba(15,23,42,0.12) !important;
+      background: rgba(255,255,255,0.24) !important;
+      color: #0f172a !important;
+    }
+
+    .board-theme-light .board-danger-button {
+      border-color: rgba(180, 83, 9, 0.26) !important;
+      background: rgba(255,255,255,0.18) !important;
+      color: #92400e !important;
+    }
+
+    .board-theme-light .board-member-card,
+    .board-theme-light .archived-list-card {
+      border-color: rgba(15, 23, 42, 0.08);
+      background: rgba(255,255,255,0.34);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .board-theme-light .board-member-avatar {
+      background: rgba(15,23,42,0.08);
+      color: #0f172a;
+    }
+
+    .board-theme-light .board-member-meta,
+    .board-theme-light .archived-item-meta {
+      color: rgba(15, 23, 42, 0.68);
     }
 
     .kanban-list {
@@ -863,6 +973,7 @@ export class BoardComponent implements OnInit, OnDestroy {
   workspaceBoards: Board[] = [];
   cards: Card[] = [];
   archivedCards: Card[] = [];
+  useLightBoardTheme = false;
   cardsByList: Record<number, Card[]> = {};
   assigneeDirectory: Record<number, User> = {};
   boardMemberDirectory: Record<number, User> = {};
@@ -910,6 +1021,7 @@ export class BoardComponent implements OnInit, OnDestroy {
     this.store.select(selectLists).pipe(takeUntil(this.destroy$)).subscribe(l => this.lists = l);
     this.board$.pipe(takeUntil(this.destroy$)).subscribe(board => {
       this.currentBoard = board;
+      this.applyBoardTheme(board);
       this.boardMembers = board?.members ?? [];
       this.loadBoardMemberUsers(this.boardMembers);
       if (board?.workspaceId) {
@@ -1041,8 +1153,11 @@ export class BoardComponent implements OnInit, OnDestroy {
       }
 
       this.boardService.update(boardId, payload).subscribe({
-        next: () => {
-          this.store.dispatch(BoardActions.loadBoard({ boardId }));
+        next: (updatedBoard) => {
+          this.replaceCurrentBoard({
+            ...updatedBoard,
+            members: updatedBoard.members?.length ? updatedBoard.members : this.boardMembers
+          });
           this.snack.open('Board updated', 'Close', { duration: 2500 });
         },
         error: (err) => {
@@ -1168,7 +1283,8 @@ export class BoardComponent implements OnInit, OnDestroy {
           next: () => {
             this.lists = this.lists.filter(l => l.id !== list.id);
             this.archivedLists = this.archivedLists.filter(l => l.id !== list.id);
-            this.store.dispatch(BoardActions.loadBoard({ boardId: +this.route.snapshot.params['id'] }));
+            this.cards = this.cards.filter(card => card.listId !== list.id);
+            this.syncCardsByList();
             this.snack.open('List deleted', 'Close', { duration: 2500 });
           },
           error: (err) => {
@@ -1183,7 +1299,9 @@ export class BoardComponent implements OnInit, OnDestroy {
   restoreCard(card: Card): void {
     this.cardService.unarchive(card.id).subscribe({
       next: () => {
-        this.store.dispatch(BoardActions.loadBoard({ boardId: +this.route.snapshot.params['id'] }));
+        this.archivedCards = this.archivedCards.filter(existing => existing.id !== card.id);
+        this.cards = [...this.cards, { ...card, isArchived: false }];
+        this.syncCardsByList();
         this.snack.open('Card restored', 'Close', { duration: 2500 });
       },
       error: (err) => {
@@ -1209,7 +1327,9 @@ export class BoardComponent implements OnInit, OnDestroy {
       if (result) {
         this.cardService.delete(card.id).subscribe({
           next: () => {
-            this.store.dispatch(BoardActions.loadBoard({ boardId: +this.route.snapshot.params['id'] }));
+            this.cards = this.cards.filter(existing => existing.id !== card.id);
+            this.archivedCards = this.archivedCards.filter(existing => existing.id !== card.id);
+            this.syncCardsByList();
             this.snack.open('Card deleted', 'Close', { duration: 2500 });
           },
           error: (err) => {
@@ -1275,7 +1395,8 @@ export class BoardComponent implements OnInit, OnDestroy {
           next: () => {
             this.lists = this.lists.filter(existing => existing.id !== list.id);
             this.archivedLists = [...this.archivedLists, { ...list, isArchived: true }];
-            this.store.dispatch(BoardActions.loadBoard({ boardId: +this.route.snapshot.params['id'] }));
+            this.cards = this.cards.filter(card => card.listId !== list.id);
+            this.syncCardsByList();
             this.snack.open('List archived', 'Close', { duration: 2500 });
           },
           error: (err) => {
@@ -1291,8 +1412,8 @@ export class BoardComponent implements OnInit, OnDestroy {
     this.listService.unarchive(list.id).subscribe({
       next: () => {
         this.archivedLists = this.archivedLists.filter(existing => existing.id !== list.id);
-        this.store.dispatch(BoardActions.loadBoard({ boardId: +this.route.snapshot.params['id'] }));
-        this.loadArchivedLists(+this.route.snapshot.params['id']);
+        this.lists = [...this.lists, { ...list, isArchived: false }];
+        this.sortLists();
         this.snack.open('List restored', 'Close', { duration: 2500 });
       },
       error: (err) => {
@@ -1327,8 +1448,8 @@ export class BoardComponent implements OnInit, OnDestroy {
         next: () => {
           this.lists = this.lists.filter(existing => existing.id !== list.id);
           this.archivedLists = this.archivedLists.filter(existing => existing.id !== list.id);
-          this.store.dispatch(BoardActions.loadBoard({ boardId: +this.route.snapshot.params['id'] }));
-          this.loadArchivedLists(+this.route.snapshot.params['id']);
+          this.cards = this.cards.filter(card => card.listId !== list.id);
+          this.syncCardsByList();
           this.snack.open('List moved', 'Close', { duration: 2500 });
         },
         error: (err) => {
@@ -1533,10 +1654,7 @@ export class BoardComponent implements OnInit, OnDestroy {
         this.boardService.close(this.currentBoard!.id).subscribe({
           next: () => {
             const closedBoard = this.currentBoard ? { ...this.currentBoard, isClosed: true } : this.currentBoard;
-            this.currentBoard = closedBoard;
-            if (closedBoard) {
-              this.store.dispatch(BoardActions.loadBoard({ boardId: closedBoard.id }));
-            }
+            this.replaceCurrentBoard(closedBoard);
             this.snack.open('Board closed', 'Close', { duration: 2500 });
           },
           error: (err) => {
@@ -1675,5 +1793,74 @@ export class BoardComponent implements OnInit, OnDestroy {
 
     this.openedNotificationCardId = card.id;
     this.openCard(card, { fromNotification: true });
+  }
+
+  private replaceCurrentBoard(board: Board | null): void {
+    this.currentBoard = board;
+    this.boardMembers = board?.members ?? this.boardMembers;
+    this.applyBoardTheme(board);
+  }
+
+  private sortLists(): void {
+    this.lists = [...this.lists].sort((a, b) => a.position - b.position);
+    this.archivedLists = [...this.archivedLists].sort((a, b) => a.position - b.position);
+  }
+
+  private syncCardsByList(): void {
+    this.cardsByList = this.cards.reduce<Record<number, Card[]>>((acc, card) => {
+      if (!acc[card.listId]) {
+        acc[card.listId] = [];
+      }
+      acc[card.listId].push(card);
+      return acc;
+    }, {});
+
+    Object.keys(this.cardsByList).forEach((key) => {
+      this.cardsByList[+key] = this.cardsByList[+key].sort((a, b) => a.position - b.position);
+    });
+  }
+
+  private applyBoardTheme(board: Board | null): void {
+    const baseColor = this.normalizeColor(board?.background);
+    if (!baseColor) {
+      this.useLightBoardTheme = false;
+      return;
+    }
+
+    const rgb = this.hexToRgb(baseColor);
+    if (!rgb) {
+      this.useLightBoardTheme = false;
+      return;
+    }
+
+    this.useLightBoardTheme = this.getLuminance(rgb.r, rgb.g, rgb.b) > 0.62;
+  }
+
+  private normalizeColor(value: string | undefined): string | null {
+    const color = String(value || '').trim();
+    return /^#([0-9a-fA-F]{6})$/.test(color) ? color : null;
+  }
+
+  private hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+    const normalized = hex.replace('#', '');
+    if (normalized.length !== 6) {
+      return null;
+    }
+
+    const parsed = Number.parseInt(normalized, 16);
+    return {
+      r: (parsed >> 16) & 255,
+      g: (parsed >> 8) & 255,
+      b: parsed & 255,
+    };
+  }
+
+  private getLuminance(r: number, g: number, b: number): number {
+    const [red, green, blue] = [r, g, b].map((channel) => {
+      const value = channel / 255;
+      return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+    });
+
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
   }
 }

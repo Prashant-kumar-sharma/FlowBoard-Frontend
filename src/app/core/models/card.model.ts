@@ -40,3 +40,14 @@ export interface CreateCardRequest {
   dueDate?: string;
   assigneeId?: number;
 }
+
+export interface CardActivityEvent {
+  id: number;
+  cardId: number;
+  actorId: number;
+  action: string;
+  fieldName?: string;
+  oldValue?: string;
+  newValue?: string;
+  createdAt: string;
+}

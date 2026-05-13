@@ -5,16 +5,27 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatIconModule } from '@angular/material/icon';
+import { Subject, takeUntil } from 'rxjs';
+import { Store } from '@ngrx/store';
 import { AuthService } from '../../../core/auth/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { NotificationPanelComponent } from '../../../features/notifications/notification-panel.component';
+import { selectBoard } from '../../../store/board/board.selectors';
+import { Board } from '../../../core/models/board.model';
 
 @Component({
   selector: 'app-header',
   standalone: true,
   imports: [CommonModule, RouterLink, MatButtonModule, MatMenuModule, MatBadgeModule, MatIconModule, NotificationPanelComponent],
   template: `
-    <header class="header-shell" [class.header-hidden]="headerHidden">
+    <header
+      class="header-shell"
+      [class.header-hidden]="headerHidden"
+      [class.header-theme-light]="useLightTheme"
+      [style.--header-background]="headerBackground"
+      [style.--header-border]="headerBorderColor"
+      [style.--header-shadow]="headerShadow"
+    >
       <div class="header-inner">
         <a [routerLink]="authService.getHomeRoute()" class="header-logo">
           <span class="logo-hex">□</span>
@@ -53,8 +64,17 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
           <span class="header-divider"></span>
 
           <button class="avatar-btn" [matMenuTriggerFor]="userMenu" aria-label="Open profile menu">
-            <span *ngIf="(authService.currentUser$ | async) as user" class="avatar-circle" [style.background-image]="getAvatarBackgroundImage(user.avatarUrl)">
-              <span *ngIf="!user.avatarUrl">{{ getInitials(user.fullName) }}</span>
+            <span *ngIf="(authService.currentUser$ | async) as user" class="avatar-circle">
+              <img
+                *ngIf="getResolvedAvatarUrl(user.avatarUrl) as avatarSrc; else headerAvatarFallback"
+                [src]="avatarSrc"
+                [alt]="user.fullName + ' avatar'"
+                class="h-full w-full rounded-full object-cover"
+                (error)="markAvatarFailed(user.avatarUrl)"
+              >
+              <ng-template #headerAvatarFallback>
+                <span>{{ getInitials(user.fullName) }}</span>
+              </ng-template>
             </span>
             <div class="avatar-info" *ngIf="(authService.currentUser$ | async) as user">
               <span class="avatar-name">{{ user.fullName }}</span>
@@ -66,8 +86,17 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
           <mat-menu #userMenu="matMenu" xPosition="before" class="profile-menu-panel" backdropClass="profile-menu-backdrop">
             <div class="menu-header" *ngIf="(authService.currentUser$ | async) as user">
               <div class="menu-header-avatar">
-                <span class="avatar-circle" [style.background-image]="getAvatarBackgroundImage(user.avatarUrl)">
-                  <span *ngIf="!user.avatarUrl">{{ getInitials(user.fullName) }}</span>
+                <span class="avatar-circle">
+                  <img
+                    *ngIf="getResolvedAvatarUrl(user.avatarUrl) as menuAvatarSrc; else menuAvatarFallback"
+                    [src]="menuAvatarSrc"
+                    [alt]="user.fullName + ' avatar'"
+                    class="h-full w-full rounded-full object-cover"
+                    (error)="markAvatarFailed(user.avatarUrl)"
+                  >
+                  <ng-template #menuAvatarFallback>
+                    <span>{{ getInitials(user.fullName) }}</span>
+                  </ng-template>
                 </span>
               </div>
               <div class="menu-header-info">
@@ -104,14 +133,14 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
       left: 0;
       right: 0;
       z-index: 100;
-      background: linear-gradient(135deg, #0a0f1e 0%, #0f172a 40%, #0c1628 100%);
-      border-bottom: 1px solid rgba(56, 189, 248, 0.08);
+      background: var(--header-background);
+      border-bottom: 1px solid var(--header-border);
       backdrop-filter: blur(20px);
-      box-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.04),
-        0 4px 24px rgba(0, 0, 0, 0.28),
-        0 0 80px rgba(14, 165, 233, 0.06);
+      box-shadow: var(--header-shadow);
       transition: transform 0.3s ease;
+    }
+    .header-theme-light {
+      color: #0f172a;
     }
     .header-hidden { transform: translateY(-100%); }
     .header-inner {
@@ -149,6 +178,11 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
+    .header-theme-light .logo-text {
+      background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
     .header-nav {
       display: flex;
       align-items: center;
@@ -167,18 +201,34 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
       text-decoration: none;
       transition: all 0.2s ease;
     }
+    .header-theme-light .nav-link {
+      color: rgba(15, 23, 42, 0.84);
+    }
     .nav-link:hover {
       color: #fff;
       background: rgba(255, 255, 255, 0.08);
+    }
+    .header-theme-light .nav-link:hover {
+      color: #0f172a;
+      background: rgba(255, 255, 255, 0.32);
     }
     .nav-link.active-link {
       color: #fff;
       background: rgba(56, 189, 248, 0.15);
       box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.2);
     }
+    .header-theme-light .nav-link.active-link {
+      color: #0f172a;
+      background: rgba(255, 255, 255, 0.44);
+      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+    }
     .nav-link-admin {
       color: #dbeafe;
       background: rgba(14, 165, 233, 0.08);
+    }
+    .header-theme-light .nav-link-admin {
+      color: #0f172a;
+      background: rgba(255, 255, 255, 0.26);
     }
     .nav-link mat-icon {
       font-size: 18px;
@@ -205,12 +255,22 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
       cursor: pointer;
       transition: all 0.2s ease;
     }
+    .header-theme-light .action-btn {
+      border-color: rgba(15, 23, 42, 0.08);
+      background: rgba(255, 255, 255, 0.2);
+      color: rgba(15, 23, 42, 0.72);
+    }
     .action-btn:hover {
       background: rgba(255, 255, 255, 0.1);
       color: #fff;
       border-color: rgba(255, 255, 255, 0.12);
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    .header-theme-light .action-btn:hover {
+      background: rgba(255, 255, 255, 0.42);
+      color: #0f172a;
+      border-color: rgba(15, 23, 42, 0.12);
     }
     .action-btn mat-icon {
       font-size: 20px;
@@ -235,6 +295,9 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
       background: linear-gradient(180deg, transparent, rgba(148, 163, 184, 0.2), transparent);
       margin: 0 0.25rem;
     }
+    .header-theme-light .header-divider {
+      background: linear-gradient(180deg, transparent, rgba(15, 23, 42, 0.16), transparent);
+    }
     .avatar-btn {
       display: flex;
       align-items: center;
@@ -247,9 +310,18 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
       transition: all 0.2s ease;
       color: #fff;
     }
+    .header-theme-light .avatar-btn {
+      border-color: rgba(15, 23, 42, 0.08);
+      background: rgba(255, 255, 255, 0.18);
+      color: #0f172a;
+    }
     .avatar-btn:hover {
       background: rgba(255, 255, 255, 0.08);
       border-color: rgba(255, 255, 255, 0.12);
+    }
+    .header-theme-light .avatar-btn:hover {
+      background: rgba(255, 255, 255, 0.36);
+      border-color: rgba(15, 23, 42, 0.12);
     }
     .avatar-circle {
       display: flex;
@@ -280,6 +352,9 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
       color: #ffffff;
       letter-spacing: 0.01em;
     }
+    .header-theme-light .avatar-name {
+      color: #0f172a;
+    }
     .avatar-role {
       font-size: 10px;
       font-weight: 700;
@@ -295,8 +370,14 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
       color: rgba(148, 163, 184, 0.5);
       transition: transform 0.2s ease;
     }
+    .header-theme-light .avatar-chevron {
+      color: rgba(15, 23, 42, 0.42);
+    }
     .avatar-btn:hover .avatar-chevron {
       color: rgba(203, 213, 225, 0.8);
+    }
+    .header-theme-light .avatar-btn:hover .avatar-chevron {
+      color: rgba(15, 23, 42, 0.72);
     }
     .menu-header {
       display: flex;
@@ -355,12 +436,19 @@ import { NotificationPanelComponent } from '../../../features/notifications/noti
 export class HeaderComponent implements OnInit, OnDestroy {
   headerHidden = false;
   notificationsOpen = false;
+  useLightTheme = false;
+  headerBackground = 'linear-gradient(135deg, #0a0f1e 0%, #0f172a 40%, #0c1628 100%)';
+  headerBorderColor = 'rgba(56, 189, 248, 0.08)';
+  headerShadow = '0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 24px rgba(0, 0, 0, 0.28), 0 0 80px rgba(14, 165, 233, 0.06)';
   private lastScrollY = 0;
   private readonly SCROLL_THRESHOLD = 10;
+  private readonly destroy$ = new Subject<void>();
+  private readonly failedAvatarUrls = new Set<string>();
 
   constructor(
     public authService: AuthService,
-    public notificationService: NotificationService
+    public notificationService: NotificationService,
+    private readonly store: Store
   ) {}
 
   @HostListener('document:click')
@@ -397,15 +485,23 @@ export class HeaderComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.notificationService.getUnreadCount().subscribe();
     this.notificationService.startPolling();
+    this.store.select(selectBoard)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((board) => this.applyBoardTheme(board));
   }
 
   toggleNotifications(): void {
     this.notificationsOpen = !this.notificationsOpen;
   }
 
-  getAvatarBackgroundImage(url: string | undefined): string | null {
+  getResolvedAvatarUrl(url: string | undefined): string | null {
     const safeUrl = this.normalizeAvatarUrl(url);
-    return safeUrl ? `url("${safeUrl}")` : null;
+    if (!safeUrl) {
+      return null;
+    }
+
+    const resolved = this.appendAvatarRevision(safeUrl);
+    return this.failedAvatarUrls.has(resolved) ? null : resolved;
   }
 
   private normalizeAvatarUrl(url: string | undefined): string | null {
@@ -426,7 +522,90 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
   }
 
+  private appendAvatarRevision(url: string): string {
+    try {
+      const parsed = new URL(url);
+      parsed.searchParams.set('avatarRev', this.authService.getAvatarRevision());
+      return parsed.toString();
+    } catch {
+      return url;
+    }
+  }
+
+  markAvatarFailed(url: string | undefined): void {
+    const safeUrl = this.normalizeAvatarUrl(url);
+    if (!safeUrl) {
+      return;
+    }
+
+    this.failedAvatarUrls.add(this.appendAvatarRevision(safeUrl));
+  }
+
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.notificationService.stopPolling();
+  }
+
+  private applyBoardTheme(board: Board | null): void {
+    const baseColor = this.normalizeColor(board?.background);
+    if (!baseColor) {
+      this.useLightTheme = false;
+      this.headerBackground = 'linear-gradient(135deg, #0a0f1e 0%, #0f172a 40%, #0c1628 100%)';
+      this.headerBorderColor = 'rgba(56, 189, 248, 0.08)';
+      this.headerShadow = '0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 24px rgba(0, 0, 0, 0.28), 0 0 80px rgba(14, 165, 233, 0.06)';
+      return;
+    }
+
+    const rgb = this.hexToRgb(baseColor);
+    if (!rgb) {
+      return;
+    }
+
+    const luminance = this.getLuminance(rgb.r, rgb.g, rgb.b);
+    this.useLightTheme = luminance > 0.62;
+    const overlayStrength = this.useLightTheme ? 0.16 : 0.34;
+    const overlayAccent = this.useLightTheme ? 0.04 : 0.18;
+    const borderTone = this.useLightTheme ? 'rgba(15, 23, 42, 0.10)' : 'rgba(255, 255, 255, 0.10)';
+    const glowColor = this.useLightTheme
+      ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18)`
+      : `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.28)`;
+
+    this.headerBackground =
+      `linear-gradient(135deg, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.94) 0%, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.88) 100%), ` +
+      `linear-gradient(180deg, rgba(255, 255, 255, ${overlayAccent}), rgba(15, 23, 42, ${overlayStrength}))`;
+    this.headerBorderColor = borderTone;
+    this.headerShadow =
+      `0 1px 0 rgba(255, 255, 255, ${this.useLightTheme ? '0.20' : '0.06'}), ` +
+      `0 10px 28px rgba(15, 23, 42, ${this.useLightTheme ? '0.12' : '0.28'}), ` +
+      `0 0 70px ${glowColor}`;
+  }
+
+  private normalizeColor(value: string | undefined): string | null {
+    const color = String(value || '').trim();
+    return /^#([0-9a-fA-F]{6})$/.test(color) ? color : null;
+  }
+
+  private hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+    const normalized = hex.replace('#', '');
+    if (normalized.length !== 6) {
+      return null;
+    }
+
+    const parsed = Number.parseInt(normalized, 16);
+    return {
+      r: (parsed >> 16) & 255,
+      g: (parsed >> 8) & 255,
+      b: parsed & 255,
+    };
+  }
+
+  private getLuminance(r: number, g: number, b: number): number {
+    const [red, green, blue] = [r, g, b].map((channel) => {
+      const value = channel / 255;
+      return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+    });
+
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
   }
 }
