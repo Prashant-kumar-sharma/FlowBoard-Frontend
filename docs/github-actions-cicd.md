@@ -1,15 +1,10 @@
 # GitHub Actions CI/CD
 
-This repository now includes:
+This repository now uses a single GitHub Actions workflow:
 
-- `frontend-ci.yml`
-  Runs on pushes to `main`, `dev`, and `feature/**`, plus pull requests to `main` and `dev`.
-  It installs dependencies, runs Angular unit tests in headless Chrome, and builds the production app.
-
-- `frontend-cd.yml`
-  Runs on pushes to `main` and on manual dispatch.
-  It builds and pushes the frontend Docker image to Docker Hub.
-  If the deployment secrets are configured, it also refreshes only the `frontend` service on your EC2 machine.
+- `deploy.yml`
+  Runs install, test, and production build on pushes to `main`, `dev`, and `feature/**`, plus pull requests to `main` and `dev`.
+  On `main`, the same workflow then builds and pushes the frontend Docker image and refreshes the `frontend` service on EC2 only after CI passes.
 
 ## Required GitHub Secrets
 
@@ -25,7 +20,7 @@ Add these repository secrets in `FlowBoard-Frontend`:
 Notes:
 
 - `SERVER_APP_PATH` should point to the backend repo path on the server, because that is where the shared `docker-compose.yml` lives.
-- The deploy job is skipped automatically if the EC2 secrets are not present.
+- Because CI and CD are in the same workflow, deployment cannot succeed when the test/build job fails.
 
 ## Suggested Branch Flow
 
