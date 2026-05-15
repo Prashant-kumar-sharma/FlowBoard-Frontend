@@ -48,11 +48,11 @@ describe('LoginComponent', () => {
 
   it('requests login otp successfully', () => {
     auth.requestLoginOtp.and.returnValue(of({ message: 'Code sent', expiresInSeconds: 60 }));
-    component.form.get('email')?.setValue('user@example.com');
+    component.form.patchValue({ email: 'user@example.com', password: 'secret123' });
 
     component.onSubmit();
 
-    expect(auth.requestLoginOtp).toHaveBeenCalledWith({ email: 'user@example.com', password: '' });
+    expect(auth.requestLoginOtp).toHaveBeenCalledWith({ email: 'user@example.com', password: 'secret123' });
     expect(component.otpSent).toBeTrue();
     expect(component.submittedEmail).toBe('user@example.com');
     expect(component.form.get('otp')?.validator).toBeTruthy();
@@ -62,7 +62,7 @@ describe('LoginComponent', () => {
 
   it('shows request otp failure', () => {
     auth.requestLoginOtp.and.returnValue(throwError(() => ({ error: { message: 'Nope' } })));
-    component.form.get('email')?.setValue('user@example.com');
+    component.form.patchValue({ email: 'user@example.com', password: 'secret123' });
 
     component.onSubmit();
 
@@ -72,11 +72,11 @@ describe('LoginComponent', () => {
 
   it('resends otp through the same request path', () => {
     auth.requestLoginOtp.and.returnValue(of({ message: 'Again', expiresInSeconds: 60 }));
-    component.form.get('email')?.setValue('user@example.com');
+    component.form.patchValue({ email: 'user@example.com', password: 'secret123' });
 
     component.resendOtp();
 
-    expect(auth.requestLoginOtp).toHaveBeenCalledWith({ email: 'user@example.com', password: '' });
+    expect(auth.requestLoginOtp).toHaveBeenCalledWith({ email: 'user@example.com', password: 'secret123' });
   });
 
   it('does not resend while loading', () => {
@@ -89,24 +89,28 @@ describe('LoginComponent', () => {
 
   it('uses the default success and failure messages for otp requests', () => {
     auth.requestLoginOtp.and.returnValue(of({ message: '', expiresInSeconds: 60 }));
-    component.form.get('email')?.setValue('user@example.com');
+    component.form.patchValue({ email: 'user@example.com', password: 'secret123' });
 
     component.onSubmit();
-    expect(snack.open).toHaveBeenCalledWith('Sign-in code sent to your email.', 'Close', { duration: 4000 });
+    expect(snack.open).toHaveBeenCalledWith('Verification code sent to your email.', 'Close', { duration: 4000 });
 
     auth.requestLoginOtp.and.returnValue(throwError(() => ({ error: {} })));
     component.loading = false;
     component.otpSent = false;
+    component.form.get('otp')?.clearValidators();
+    component.form.get('otp')?.setValue('');
+    component.form.get('otp')?.updateValueAndValidity();
 
     component.onSubmit();
-    expect(snack.open).toHaveBeenCalledWith('Failed to send sign-in code', 'Close', { duration: 4000 });
+    expect(snack.open).toHaveBeenCalledWith('Login failed. Please check your credentials.', 'Close', { duration: 4000 });
   });
 
   it('verifies otp and navigates on success', () => {
     auth.verifyLoginOtp.and.returnValue(of({ accessToken: 't', tokenType: 'Bearer', user: {} as any }));
     component.otpSent = true;
     component.form.get('otp')?.setValidators([]);
-    component.form.patchValue({ email: 'user@example.com', otp: '123456' });
+    component.form.get('otp')?.updateValueAndValidity();
+    component.form.patchValue({ email: 'user@example.com', password: 'secret123', otp: '123456' });
 
     component.onSubmit();
 
@@ -118,11 +122,12 @@ describe('LoginComponent', () => {
     component.otpSent = true;
     component.form.get('otp')?.setValidators([() => ({ pattern: true })]);
     component.form.get('otp')?.updateValueAndValidity();
-    component.form.patchValue({ email: 'user@example.com', otp: '12' });
+    component.form.patchValue({ email: 'user@example.com', password: 'secret123', otp: '12' });
     component.onSubmit();
     expect(auth.verifyLoginOtp).not.toHaveBeenCalled();
 
     component.form.get('otp')?.setValidators([]);
+    component.form.get('otp')?.updateValueAndValidity();
     component.form.patchValue({ otp: '123456' });
     auth.verifyLoginOtp.and.returnValue(throwError(() => ({ error: { message: 'Bad code' } })));
 
@@ -135,7 +140,8 @@ describe('LoginComponent', () => {
   it('uses the default verification failure message when the backend does not provide one', () => {
     component.otpSent = true;
     component.form.get('otp')?.setValidators([]);
-    component.form.patchValue({ email: 'user@example.com', otp: '123456' });
+    component.form.get('otp')?.updateValueAndValidity();
+    component.form.patchValue({ email: 'user@example.com', password: 'secret123', otp: '123456' });
     auth.verifyLoginOtp.and.returnValue(throwError(() => ({ error: {} })));
 
     component.onSubmit();

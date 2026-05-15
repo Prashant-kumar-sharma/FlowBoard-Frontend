@@ -28,7 +28,7 @@ describe('Board Store', () => {
     expect(movedCard.cards.find(card => card.id === 100)?.listId).toBe(11);
 
     const archivedCard = boardReducer(movedCard, BoardActions.archiveCard({ cardId: 101 }));
-    expect(archivedCard.cards.some(card => card.id === 101)).toBeFalse();
+    expect(archivedCard.cards.find(card => card.id === 101)?.isArchived).toBeTrue();
 
     const addedList = boardReducer(archivedCard, BoardActions.addList({ list: { id: 11, name: 'Doing' } }));
     expect(addedList.lists.length).toBe(2);
