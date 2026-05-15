@@ -21,6 +21,7 @@ Notes:
 
 - `SERVER_APP_PATH` should point to the backend repo path on the server, because that is where the shared `docker-compose.yml` lives.
 - Because CI and CD are in the same workflow, deployment cannot succeed when the test/build job fails.
+- On non-`main` branches, the release jobs finish as no-op successes instead of showing as skipped.
 
 ## Suggested Branch Flow
 
