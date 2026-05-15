@@ -15,7 +15,6 @@ Thumbs.db
 # Dependencies
 # ========================
 node_modules/
-package-lock.json
 
 # ========================
 # Angular Build & Cache
